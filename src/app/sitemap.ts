@@ -2,6 +2,8 @@ import type { MetadataRoute } from 'next';
 import { keywordPages } from '@/app/seo-keywords';
 import { getAllJudgmentsFromDB } from '@/lib/judgment-store';
 
+export const dynamic = 'force-dynamic';
+
 const BASE_URL = 'https://mishpatly.co.il';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -22,7 +24,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.85,
   }));
 
-  const allJudgments = await getAllJudgmentsFromDB();
+  let allJudgments: Awaited<ReturnType<typeof getAllJudgmentsFromDB>> = [];
+  try {
+    allJudgments = await getAllJudgmentsFromDB();
+  } catch {
+    // DB unavailable during build - will be populated at runtime
+  }
   const judgmentPages: MetadataRoute.Sitemap = allJudgments
     .filter(j => j.status === 'PUBLISHED')
     .map((j) => ({

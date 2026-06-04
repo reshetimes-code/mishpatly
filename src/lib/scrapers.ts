@@ -54,6 +54,48 @@ function parseDate(dateStr: string): string {
 }
 
 // ============================================================
+// Helper: extract plaintiff/defendant from title text
+// Handles patterns like "X נ' Y", "X נגד Y", "X נ. Y"
+// ============================================================
+function extractPartiesFromTitle(title: string): { plaintiff: string; defendant: string } {
+  if (!title) return { plaintiff: '', defendant: '' };
+
+  // Try common Israeli legal patterns
+  const patterns = [
+    // "תובע נ' נתבע" or "תובע נ׳ נתבע"
+    /^(.+?)\s+נ['׳]\s+(.+?)(?:\s*[-–—,.(]|$)/,
+    // "תובע נגד נתבע"
+    /^(.+?)\s+נגד\s+(.+?)(?:\s*[-–—,.(]|$)/,
+    // "תובע נ. נתבע"
+    /^(.+?)\s+נ\.\s+(.+?)(?:\s*[-–—,.(]|$)/,
+    // Case number prefix: "ת"א 1234 תובע נ' נתבע"
+    /^[א-ת"׳]{1,8}\s+\d[\d\/-]+\d{2,4}\s+(.+?)\s+נ['׳]\s+(.+?)(?:\s*[-–—,.(]|$)/,
+    /^[א-ת"׳]{1,8}\s+\d[\d\/-]+\d{2,4}\s+(.+?)\s+נגד\s+(.+?)(?:\s*[-–—,.(]|$)/,
+    // With dash separator: "1234-05-21 - תובע נ' נתבע"
+    /\d+\s*-\s*(.+?)\s+נ['׳]\s+(.+?)(?:\s*[-–—,.(]|$)/,
+    /\d+\s*-\s*(.+?)\s+נגד\s+(.+?)(?:\s*[-–—,.(]|$)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = title.match(pattern);
+    if (match) {
+      let plaintiff = match[1].trim();
+      let defendant = match[2].trim();
+
+      // Clean up: remove case numbers from start of plaintiff
+      plaintiff = plaintiff.replace(/^[א-ת"׳]{1,8}\s+\d[\d\/-]+\d{2,4}\s*[-–—]?\s*/, '').trim();
+
+      // Limit length and skip obviously bad matches
+      if (plaintiff.length > 2 && plaintiff.length < 100 && defendant.length > 2 && defendant.length < 100) {
+        return { plaintiff, defendant };
+      }
+    }
+  }
+
+  return { plaintiff: '', defendant: '' };
+}
+
+// ============================================================
 // Source 1: data.gov.il - Freedom of Information (FOI) judgments
 // ============================================================
 export async function scrapeDataGovIL(): Promise<{ items: JudgmentInput[]; errors: string[] }> {
@@ -147,6 +189,7 @@ export async function scrapeRabbinicCourt(): Promise<{ items: JudgmentInput[]; e
 
         if (!name && !year) continue;
 
+        const { plaintiff: rabPlaintiff, defendant: rabDefendant } = extractPartiesFromTitle(name);
         items.push({
           title: name || `פסק דין בית דין רבני ${year}`,
           slug: createSlug(`rabbinic-${caseNum}`),
@@ -155,9 +198,9 @@ export async function scrapeRabbinicCourt(): Promise<{ items: JudgmentInput[]; e
           procedureType: 'גירושין',
           judgmentDate: year.length === 4 ? `${year}-01-01` : parseDate(year),
           judge: '',
-          plaintiff: '',
-          defendant: '',
-          parties: '',
+          plaintiff: rabPlaintiff,
+          defendant: rabDefendant,
+          parties: rabPlaintiff && rabDefendant ? `${rabPlaintiff} נגד ${rabDefendant}` : '',
           summary: name ? `${name}. כמות: ${count}` : `פסק דין גירושין - ${year}`,
           fullText: '',
           sourceUrl: 'https://data.gov.il',
@@ -471,6 +514,7 @@ function parsePsakDinResults(html: string): JudgmentInput[] {
     const title = titles[i];
     const slug = slugs[i] || '';
     const date = dates[i] || '';
+    const { plaintiff, defendant } = extractPartiesFromTitle(title);
 
     items.push({
       title,
@@ -480,9 +524,9 @@ function parsePsakDinResults(html: string): JudgmentInput[] {
       procedureType: 'אזרחי',
       judgmentDate: parseDate(date),
       judge: '',
-      plaintiff: '',
-      defendant: '',
-      parties: '',
+      plaintiff,
+      defendant,
+      parties: plaintiff && defendant ? `${plaintiff} נגד ${defendant}` : '',
       summary: title,
       fullText: '',
       sourceUrl: slug ? `https://www.psakdin.co.il/Document/${slug}` : 'https://www.psakdin.co.il',
@@ -515,6 +559,7 @@ function parsePsakDinMagazine(html: string): JudgmentInput[] {
     const title = match[2].trim();
     if (title.length < 5 || title.length > 200) continue;
 
+    const { plaintiff: magPlaintiff, defendant: magDefendant } = extractPartiesFromTitle(title);
     items.push({
       title,
       slug: createSlug(`psakdin-mag-${url.split('/').pop() || idx}`),
@@ -523,9 +568,9 @@ function parsePsakDinMagazine(html: string): JudgmentInput[] {
       procedureType: 'אזרחי',
       judgmentDate: parseDate(allDates[idx] || ''),
       judge: '',
-      plaintiff: '',
-      defendant: '',
-      parties: '',
+      plaintiff: magPlaintiff,
+      defendant: magDefendant,
+      parties: magPlaintiff && magDefendant ? `${magPlaintiff} נגד ${magDefendant}` : '',
       summary: title,
       fullText: '',
       sourceUrl: `https://www.psakdin.co.il${url}`,
@@ -835,6 +880,7 @@ export async function scrapeTakdin(): Promise<{ items: JudgmentInput[]; errors: 
       const docMatch = match[0].match(/\/Document\/Index\/(\d+)/);
       const docId = docMatch ? docMatch[1] : '';
 
+      const { plaintiff: tkPlaintiff, defendant: tkDefendant } = extractPartiesFromTitle(title);
       items.push({
         title,
         slug: createSlug(`takdin-${docId || idx}`),
@@ -843,9 +889,9 @@ export async function scrapeTakdin(): Promise<{ items: JudgmentInput[]; errors: 
         procedureType: 'אזרחי',
         judgmentDate: parseDate(allDates[idx] || ''),
         judge: '',
-        plaintiff: '',
-        defendant: '',
-        parties: '',
+        plaintiff: tkPlaintiff,
+        defendant: tkDefendant,
+        parties: tkPlaintiff && tkDefendant ? `${tkPlaintiff} נגד ${tkDefendant}` : '',
         summary: title,
         fullText: '',
         sourceUrl: docId ? `https://www.takdin.co.il/Document/Index/${docId}` : 'https://www.takdin.co.il',
@@ -926,6 +972,7 @@ function parseDinArticles(html: string): JudgmentInput[] {
     const title = match[2].trim();
     if (title.length < 5 || title.length > 200) continue;
 
+    const { plaintiff: dinPlaintiff, defendant: dinDefendant } = extractPartiesFromTitle(title);
     items.push({
       title,
       slug: createSlug(`din-${url.split('/')[2] || idx}`),
@@ -934,9 +981,9 @@ function parseDinArticles(html: string): JudgmentInput[] {
       procedureType: 'אזרחי',
       judgmentDate: new Date().toISOString().split('T')[0],
       judge: '',
-      plaintiff: '',
-      defendant: '',
-      parties: '',
+      plaintiff: dinPlaintiff,
+      defendant: dinDefendant,
+      parties: dinPlaintiff && dinDefendant ? `${dinPlaintiff} נגד ${dinDefendant}` : '',
       summary: title,
       fullText: '',
       sourceUrl: `https://www.din.co.il${url}`,
@@ -1051,8 +1098,13 @@ function parseTolaatHTML(html: string, baseUrl: string): JudgmentInput[] {
     const partiesMatch = text.match(partiesPattern);
 
     const courtName = courtMatch ? courtMatch[1].trim() : 'בית משפט';
-    const plaintiff = partiesMatch ? partiesMatch[1].trim() : '';
-    const defendant = partiesMatch ? partiesMatch[2].trim() : '';
+    let thPlaintiff = partiesMatch ? partiesMatch[1].trim() : '';
+    let thDefendant = partiesMatch ? partiesMatch[2].trim() : '';
+    if (!thPlaintiff || !thDefendant) {
+      const extracted = extractPartiesFromTitle(text);
+      thPlaintiff = extracted.plaintiff;
+      thDefendant = extracted.defendant;
+    }
 
     items.push({
       title: text.slice(0, 200),
@@ -1062,9 +1114,9 @@ function parseTolaatHTML(html: string, baseUrl: string): JudgmentInput[] {
       procedureType: detectProcedureType(caseNumber),
       judgmentDate: dateMatch ? parseDate(dateMatch[1]) : new Date().toISOString().split('T')[0],
       judge: judgeMatch ? judgeMatch[1].trim() : '',
-      plaintiff,
-      defendant,
-      parties: plaintiff && defendant ? `${plaintiff} נגד ${defendant}` : '',
+      plaintiff: thPlaintiff,
+      defendant: thDefendant,
+      parties: thPlaintiff && thDefendant ? `${thPlaintiff} נגד ${thDefendant}` : '',
       summary: text.slice(0, 500),
       fullText: '',
       sourceUrl: url.startsWith('http') ? url : `${baseUrl}${url}`,
@@ -1082,7 +1134,6 @@ function parseTolaatHTML(html: string, baseUrl: string): JudgmentInput[] {
     while ((match = genericLinkPattern.exec(html)) !== null && idx < 50) {
       const url = match[1];
       const text = match[2].trim();
-      // Skip nav/menu/footer links
       if (url.includes('login') || url.includes('register') || url.includes('about') ||
           url.includes('contact') || url.includes('terms') || url.includes('privacy') ||
           url === '/' || url.includes('javascript:') || url === '#') continue;
@@ -1097,8 +1148,13 @@ function parseTolaatHTML(html: string, baseUrl: string): JudgmentInput[] {
       const partiesMatch = text.match(partiesPattern);
 
       const courtName = courtMatch ? courtMatch[1].trim() : 'בית משפט';
-      const plaintiff = partiesMatch ? partiesMatch[1].trim() : '';
-      const defendant = partiesMatch ? partiesMatch[2].trim() : '';
+      let thPlaintiff2 = partiesMatch ? partiesMatch[1].trim() : '';
+      let thDefendant2 = partiesMatch ? partiesMatch[2].trim() : '';
+      if (!thPlaintiff2 || !thDefendant2) {
+        const extracted = extractPartiesFromTitle(text);
+        thPlaintiff2 = extracted.plaintiff;
+        thDefendant2 = extracted.defendant;
+      }
 
       items.push({
         title: text.slice(0, 200),
@@ -1108,9 +1164,9 @@ function parseTolaatHTML(html: string, baseUrl: string): JudgmentInput[] {
         procedureType: detectProcedureType(caseNumber),
         judgmentDate: dateMatch ? parseDate(dateMatch[1]) : new Date().toISOString().split('T')[0],
         judge: judgeMatch ? judgeMatch[1].trim() : '',
-        plaintiff,
-        defendant,
-        parties: plaintiff && defendant ? `${plaintiff} נגד ${defendant}` : '',
+        plaintiff: thPlaintiff2,
+        defendant: thDefendant2,
+        parties: thPlaintiff2 && thDefendant2 ? `${thPlaintiff2} נגד ${thDefendant2}` : '',
         summary: text.slice(0, 500),
         fullText: '',
         sourceUrl: `${baseUrl}${url}`,
