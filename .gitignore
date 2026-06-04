@@ -1,0 +1,7 @@
+node_modules
+.env
+.env.*
+/src/generated/prisma
+.vercel
+.next
+tsconfig.tsbuildinfo

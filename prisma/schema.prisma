@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum JudgmentStatus {
+  PUBLISHED
+  DRAFT
+  HIDDEN
+  PENDING_REVIEW
+}
+
+enum RemovalStatus {
+  NEW
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+model Judgment {
+  id              Int             @id @default(autoincrement())
+  title           String
+  slug            String          @unique
+  caseNumber      String          @map("case_number")
+  courtName       String          @map("court_name")
+  procedureType   String?         @map("procedure_type")
+  judgmentDate     DateTime        @map("judgment_date")
+  judge           String?
+  plaintiff       String?
+  defendant       String?
+  parties         String?
+  summary         String?         @db.Text
+  fullText        String?         @map("full_text") @db.Text
+  sourceUrl       String?         @map("source_url")
+  pdfUrl          String?         @map("pdf_url")
+  sourceName      String?         @map("source_name")
+  category        String?
+  seoTitle        String?         @map("seo_title")
+  seoDescription  String?         @map("seo_description")
+  status          JudgmentStatus  @default(PUBLISHED)
+  isIndexable     Boolean         @default(true) @map("is_indexable")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  removalRequests RemovalRequest[]
+
+  @@index([slug])
+  @@index([caseNumber])
+  @@index([status])
+  @@index([judgmentDate])
+  @@index([courtName])
+  @@index([sourceName])
+  @@index([category])
+  @@map("judgments")
+}
+
+model ImportLog {
+  id          Int      @id @default(autoincrement())
+  source      String
+  sourceName  String   @map("source_name")
+  importDate  DateTime @map("import_date")
+  totalCount  Int      @map("total_count")
+  newCount    Int      @map("new_count")
+  updatedCount Int     @map("updated_count")
+  status      String
+  errors      String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([source])
+  @@index([importDate])
+  @@map("import_logs")
+}
+
+model RemovalRequest {
+  id          Int            @id @default(autoincrement())
+  judgmentId  Int?           @map("judgment_id")
+  fullName    String         @map("full_name")
+  phone       String?
+  email       String
+  reason      String         @db.Text
+  documentUrl String?        @map("document_url")
+  status      RemovalStatus  @default(NEW)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  judgment    Judgment?      @relation(fields: [judgmentId], references: [id])
+
+  @@index([status])
+  @@index([judgmentId])
+  @@map("removal_requests")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         UserRole  @default(VIEWER)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("users")
+}

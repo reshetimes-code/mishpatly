@@ -1,0 +1,9 @@
+.next
+node_modules
+.git
+*.md
+.env
+.env.local
+logoTransperent.png
+logoTransperent1.png
+logoTransperentWhite.png

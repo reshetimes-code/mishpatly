@@ -1,0 +1,6 @@
+DB_HOST: "34.67.252.154"
+DB_PORT: "5432"
+DB_USER: "postgres"
+DB_PASSWORD: "^D1TU]Jf|N,VpTv["
+DB_NAME: "mishpatly"
+DATABASE_URL: "postgresql://postgres:placeholder@34.67.252.154:5432/mishpatly"
