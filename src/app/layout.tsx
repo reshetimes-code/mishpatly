@@ -138,9 +138,16 @@ export default function RootLayout({
               },
               "address": {
                 "@type": "PostalAddress",
-                "streetAddress": "דרך חיפה 19",
-                "addressLocality": "קרית אתא",
-                "addressCountry": "IL"
+                "addressCountry": "IL",
+                "addressRegion": "ישראל"
+              },
+              "areaServed": {
+                "@type": "Country",
+                "name": "Israel"
+              },
+              "serviceArea": {
+                "@type": "Country",
+                "name": "Israel"
               }
             },
             {
