@@ -68,30 +68,45 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const j = await getJudgment(slug);
 
   const personName = j.defendant || j.plaintiff || '';
+  const hasDefendant = !!j.defendant;
+  const hasPlaintiff = !!j.plaintiff;
+
+  // Title optimized for Google: defendant name first, then case info
   const title = personName
-    ? `${personName} - פסק דין ${j.caseNumber} | ${j.court} | משפטלי`
+    ? hasDefendant && hasPlaintiff
+      ? `${j.defendant} - פסקי דין נגד ${j.defendant} | ${j.plaintiff} נגד ${j.defendant} | משפטלי`
+      : `${personName} - פסק דין ${j.caseNumber} | ${j.court} | משפטלי`
     : `פסק דין ${j.caseNumber} | ${j.court} | משפטלי`;
 
+  // Description optimized: defendant name repeated for SEO relevance
   const description = personName
-    ? `כל פסקי הדין עבור ${personName}. פסק דין ${j.caseNumber} ב${j.court}. ${j.plaintiff} נגד ${j.defendant}. ${(j.summary || '').slice(0, 120)}`
+    ? hasDefendant && hasPlaintiff
+      ? `פסקי דין נגד ${j.defendant}. ${j.plaintiff} נגד ${j.defendant} - פסק דין ${j.caseNumber} ב${j.court}. צפו בפסקי דין של ${j.defendant}. ${(j.summary || '').slice(0, 100)}`
+      : `כל פסקי הדין עבור ${personName}. פסק דין ${j.caseNumber} ב${j.court}. ${(j.summary || '').slice(0, 120)}`
     : `פסק דין ${j.caseNumber} - ${j.summary?.slice(0, 150)}`;
 
   const keywords = [
     personName,
+    j.defendant,
     j.plaintiff,
     `פסק דין ${personName}`,
     `פסקי דין ${personName}`,
+    `פסקי דין נגד ${j.defendant}`,
     `${personName} פסק דין`,
     `${personName} בית משפט`,
+    `${j.defendant} נתבע`,
+    `${j.plaintiff} נגד ${j.defendant}`,
     j.caseNumber,
     j.court,
     j.judge,
     'פסק דין',
     'פסקי דין',
     'משפטלי',
+    'משפט לי',
     j.proceedingType,
     j.category,
     'חיפוש פסקי דין',
+    'חיפוש פסקי דין לפי שם',
     'מאגר פסקי דין',
     `הסרת אזכור ${personName}`,
   ].filter(Boolean);
