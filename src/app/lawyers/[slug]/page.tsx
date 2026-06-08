@@ -18,7 +18,8 @@ export default async function LawyerProfilePage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
+  const { slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug);
   const lawyer = await getLawyerBySlug(slug);
 
   if (!lawyer) {
