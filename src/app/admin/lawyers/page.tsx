@@ -126,7 +126,7 @@ export default function AdminLawyersPage() {
     try {
       const res = await fetch(`/api/lawyers/${editingLawyer.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: adminHeaders(),
         body: JSON.stringify({
           licenseNumber: editingLawyer.licenseNumber, // admin knows the license
           ...form,
@@ -148,11 +148,17 @@ export default function AdminLawyersPage() {
     setSaving(false);
   }
 
+  function adminHeaders(): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
+  }
+
   async function toggleVerified(lawyer: Lawyer) {
     try {
       const res = await fetch(`/api/lawyers/${lawyer.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: adminHeaders(),
         body: JSON.stringify({ licenseNumber: lawyer.licenseNumber, isVerified: !lawyer.isVerified }),
       });
       if (res.ok) fetchLawyers();
@@ -176,7 +182,7 @@ export default function AdminLawyersPage() {
     try {
       const res = await fetch(`/api/lawyers/${lawyer.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: adminHeaders(),
         body: JSON.stringify({ licenseNumber: lawyer.licenseNumber, isActive: !lawyer.isActive }),
       });
       if (res.ok) fetchLawyers();
