@@ -1,37 +1,7 @@
-'use client';
-
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-
-interface LawyerProfile {
-  id: number;
-  slug: string;
-  fullName: string;
-  licenseNumber: string;
-  phone: string;
-  email: string;
-  specializations: string[];
-  courtDistrict: string;
-  city: string;
-  address: string;
-  yearsExperience: number;
-  education: string;
-  bio: string;
-  website: string;
-  whatsapp: string;
-  rating: number;
-  reviewCount: number;
-  isVerified: boolean;
-}
-
-interface Review {
-  id: number;
-  reviewerName: string;
-  rating: number;
-  text: string;
-  createdAt: string;
-}
+import { notFound } from 'next/navigation';
+import { getLawyerBySlug, getReviewsByLawyerId } from '@/lib/lawyer-store';
+import ReviewSection from './ReviewSection';
 
 function StarRating({ rating, size = 'text-lg' }: { rating: number; size?: string }) {
   return (
@@ -43,119 +13,19 @@ function StarRating({ rating, size = 'text-lg' }: { rating: number; size?: strin
   );
 }
 
-function StarInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const [hover, setHover] = useState(0);
-  return (
-    <span className="text-2xl cursor-pointer select-none">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <span
-          key={i}
-          className={i <= (hover || value) ? 'text-accent' : 'text-gray-300'}
-          onMouseEnter={() => setHover(i)}
-          onMouseLeave={() => setHover(0)}
-          onClick={() => onChange(i)}
-        >
-          &#9733;
-        </span>
-      ))}
-    </span>
-  );
-}
+export default async function LawyerProfilePage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const lawyer = getLawyerBySlug(slug);
 
-export default function LawyerProfilePage() {
-  const params = useParams();
-  const slug = params.slug as string;
-
-  const [lawyer, setLawyer] = useState<LawyerProfile | null>(null);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-
-  // Review form
-  const [reviewerName, setReviewerName] = useState('');
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewText, setReviewText] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [reviewMessage, setReviewMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const res = await fetch(`/api/lawyers?q=${encodeURIComponent(slug)}&limit=100`);
-        const data = await res.json();
-        const found = data.lawyers?.find((l: LawyerProfile) => l.slug === slug);
-        if (!found) {
-          setNotFound(true);
-          setLoading(false);
-          return;
-        }
-        setLawyer(found);
-
-        // Load reviews
-        const revRes = await fetch(`/api/lawyers/${found.id}/reviews`);
-        const revData = await revRes.json();
-        setReviews(revData.reviews || []);
-      } catch {
-        setNotFound(true);
-      }
-      setLoading(false);
-    }
-    loadData();
-  }, [slug]);
-
-  async function submitReview(e: React.FormEvent) {
-    e.preventDefault();
-    if (!lawyer) return;
-    setSubmitting(true);
-    setReviewMessage(null);
-
-    try {
-      const res = await fetch(`/api/lawyers/${lawyer.id}/reviews`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviewerName, rating: reviewRating, text: reviewText }),
-      });
-      const data = await res.json();
-
-      if (data.approved) {
-        setReviewMessage({ type: 'success', text: 'ההמלצה פורסמה בהצלחה! תודה.' });
-        setReviewerName('');
-        setReviewRating(5);
-        setReviewText('');
-        // Reload reviews
-        const revRes = await fetch(`/api/lawyers/${lawyer.id}/reviews`);
-        const revData = await revRes.json();
-        setReviews(revData.reviews || []);
-      } else {
-        setReviewMessage({ type: 'error', text: data.reason || 'ההמלצה לא אושרה על ידי המערכת.' });
-      }
-    } catch {
-      setReviewMessage({ type: 'error', text: 'שגיאה בשליחת ההמלצה' });
-    }
-    setSubmitting(false);
+  if (!lawyer) {
+    notFound();
   }
 
-  if (loading) {
-    return (
-      <div dir="rtl" className="min-h-screen flex items-center justify-center bg-legal-bg">
-        <div className="text-center">
-          <div className="inline-block w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-          <p className="mt-3 text-gray-500">טוען...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (notFound || !lawyer) {
-    return (
-      <div dir="rtl" className="min-h-screen flex items-center justify-center bg-legal-bg">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-500 mb-2">עורך הדין לא נמצא</h1>
-          <Link href="/lawyers" className="text-accent hover:underline">חזרה לפורטל עורכי הדין</Link>
-        </div>
-      </div>
-    );
-  }
+  const reviews = getReviewsByLawyerId(lawyer.id);
 
   return (
     <div dir="rtl" className="min-h-screen bg-legal-bg text-legal-text">
@@ -178,9 +48,17 @@ export default function LawyerProfilePage() {
           <div className="lg:col-span-2 space-y-6">
             <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
               <div className="flex items-start gap-4 mb-4">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-primary-light flex items-center justify-center text-white text-3xl font-bold shrink-0">
-                  {lawyer.fullName.charAt(0)}
-                </div>
+                {lawyer.profileImage ? (
+                  <img
+                    src={lawyer.profileImage}
+                    alt={lawyer.fullName}
+                    className="w-20 h-20 rounded-full object-cover shrink-0 border-2 border-gray-200"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-primary-light flex items-center justify-center text-white text-3xl font-bold shrink-0">
+                    {lawyer.fullName.charAt(0)}
+                  </div>
+                )}
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <h1 className="text-2xl font-extrabold text-primary">{lawyer.fullName}</h1>
@@ -238,79 +116,29 @@ export default function LawyerProfilePage() {
               </div>
             </div>
 
-            {/* ===== Reviews ===== */}
-            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-primary mb-4">
-                המלצות ({reviews.length})
-              </h2>
-
-              {reviews.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-6">עדיין אין המלצות. היו הראשונים!</p>
-              ) : (
-                <div className="space-y-4">
-                  {reviews.map((r) => (
-                    <div key={r.id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-sm text-legal-text">{r.reviewerName}</span>
-                        <StarRating rating={r.rating} size="text-sm" />
-                      </div>
-                      <p className="text-sm text-gray-700">{r.text}</p>
-                      <p className="text-xs text-gray-400 mt-1">{new Date(r.createdAt).toLocaleDateString('he-IL')}</p>
-                    </div>
+            {/* Gallery */}
+            {lawyer.galleryImages && lawyer.galleryImages.length > 0 && (
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 className="text-lg font-bold text-primary mb-4">גלריה</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {lawyer.galleryImages.map((img, i) => (
+                    <img key={i} src={img} alt={`${lawyer.fullName} - תמונה ${i + 1}`} className="rounded-lg object-cover w-full h-32" />
                   ))}
                 </div>
-              )}
-
-              {/* Add review form */}
-              <div className="mt-6 border-t border-gray-200 pt-6">
-                <h3 className="text-sm font-bold text-primary mb-3">כתבו המלצה</h3>
-                <form onSubmit={submitReview} className="space-y-3">
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">שם מלא</label>
-                    <input
-                      type="text"
-                      required
-                      value={reviewerName}
-                      onChange={(e) => setReviewerName(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-                      placeholder="השם שלכם"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">דירוג</label>
-                    <StarInput value={reviewRating} onChange={setReviewRating} />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">המלצה</label>
-                    <textarea
-                      required
-                      value={reviewText}
-                      onChange={(e) => setReviewText(e.target.value)}
-                      rows={3}
-                      className="w-full rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30 resize-none"
-                      placeholder="ספרו על החוויה שלכם..."
-                    />
-                  </div>
-
-                  {reviewMessage && (
-                    <div className={`rounded-lg p-3 text-sm ${reviewMessage.type === 'success' ? 'bg-legal-green/10 text-legal-green' : 'bg-legal-danger/10 text-legal-danger'}`}>
-                      {reviewMessage.text}
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="rounded-lg bg-accent px-6 py-2.5 text-sm font-bold text-[#072a42] transition-colors hover:bg-accent-light disabled:opacity-50"
-                  >
-                    {submitting ? 'שולח...' : 'שלח המלצה'}
-                  </button>
-                  <p className="text-xs text-gray-400">
-                    * המלצות עוברות סינון אוטומטי. רק המלצות חיוביות ועניינות מתפרסמות.
-                  </p>
-                </form>
               </div>
-            </div>
+            )}
+
+            {/* Reviews */}
+            <ReviewSection
+              lawyerId={lawyer.id}
+              initialReviews={reviews.map((r) => ({
+                id: r.id,
+                reviewerName: r.reviewerName,
+                rating: r.rating,
+                text: r.text,
+                createdAt: r.createdAt,
+              }))}
+            />
           </div>
 
           {/* ===== Contact Sidebar ===== */}

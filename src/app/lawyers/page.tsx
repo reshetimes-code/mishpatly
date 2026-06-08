@@ -215,7 +215,11 @@ export default async function LawyersPage({
                   >
                     {/* Top image area */}
                     <div className="relative h-40 bg-gradient-to-bl from-[#0B3C5D] via-[#072a42] to-[#0B3C5D] overflow-hidden">
-                      <div className="absolute inset-0 opacity-20 bg-[url('/court-bg.jpg')] bg-cover bg-center" />
+                      {l.coverImage ? (
+                        <img src={l.coverImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                        <div className="absolute inset-0 opacity-20 bg-[url('/court-bg.jpg')] bg-cover bg-center" />
+                      )}
                       <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#072a42]/80 to-transparent" />
                       {l.isVerified && (
                         <span className="absolute top-3 left-3 rounded-full bg-white/20 backdrop-blur-sm px-2.5 py-0.5 text-xs font-semibold text-white">
@@ -223,9 +227,17 @@ export default async function LawyersPage({
                         </span>
                       )}
                       {/* Avatar overlay */}
-                      <div className="absolute -bottom-7 right-5 w-16 h-16 rounded-full bg-gradient-to-br from-accent to-[#D4B85E] flex items-center justify-center text-[#072a42] text-2xl font-bold border-4 border-white shadow-md">
-                        {l.fullName.charAt(0)}
-                      </div>
+                      {l.profileImage ? (
+                        <img
+                          src={l.profileImage}
+                          alt={l.fullName}
+                          className="absolute -bottom-7 right-5 w-16 h-16 rounded-full object-cover border-4 border-white shadow-md"
+                        />
+                      ) : (
+                        <div className="absolute -bottom-7 right-5 w-16 h-16 rounded-full bg-gradient-to-br from-accent to-[#D4B85E] flex items-center justify-center text-[#072a42] text-2xl font-bold border-4 border-white shadow-md">
+                          {l.fullName.charAt(0)}
+                        </div>
+                      )}
                     </div>
 
                     {/* Content */}
