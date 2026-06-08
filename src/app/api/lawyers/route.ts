@@ -4,6 +4,7 @@ import { addLawyer, searchLawyers, type LawyerProfile } from '@/lib/lawyer-store
 // GET /api/lawyers - search/list lawyers
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
+  const includeInactive = sp.get('all') === 'true';
   const result = await searchLawyers({
     query: sp.get('q') || '',
     specialization: sp.get('specialization') || '',
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
     page: parseInt(sp.get('page') || '1', 10),
     limit: parseInt(sp.get('limit') || '12', 10),
     sortBy: (sp.get('sort') as 'rating' | 'name' | 'experience') || 'rating',
+    includeInactive,
   });
 
   return NextResponse.json(result);

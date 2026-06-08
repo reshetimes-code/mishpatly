@@ -13,11 +13,13 @@ import {
   X,
   Scale,
   User,
+  Briefcase,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin/dashboard', label: 'לוח בקרה', icon: LayoutDashboard },
   { href: '/admin/judgments', label: 'ניהול פסקי דין', icon: FileText },
+  { href: '/admin/lawyers', label: 'ניהול עורכי דין', icon: Briefcase },
   { href: '/admin/removals', label: 'בקשות הסרה', icon: Trash2 },
   { href: '/admin/settings', label: 'הגדרות', icon: Settings },
 ];

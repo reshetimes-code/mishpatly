@@ -129,6 +129,35 @@ export async function getLawyerById(id: number): Promise<Lawyer | null> {
   return prisma.lawyer.findUnique({ where: { id } });
 }
 
+export async function getLawyerByLicense(licenseNumber: string): Promise<Lawyer | null> {
+  return prisma.lawyer.findUnique({ where: { licenseNumber } });
+}
+
+export async function updateLawyer(
+  id: number,
+  data: {
+    fullName?: string;
+    phone?: string;
+    email?: string;
+    profileImage?: string | null;
+    coverImage?: string | null;
+    galleryImages?: string[];
+    specializations?: string[];
+    courtDistrict?: string | null;
+    city?: string;
+    address?: string | null;
+    yearsExperience?: number;
+    education?: string | null;
+    bio?: string | null;
+    website?: string | null;
+    whatsapp?: string | null;
+    isVerified?: boolean;
+    isActive?: boolean;
+  }
+): Promise<Lawyer> {
+  return prisma.lawyer.update({ where: { id }, data });
+}
+
 export async function searchLawyers(opts: {
   query?: string;
   specialization?: string;
@@ -136,10 +165,11 @@ export async function searchLawyers(opts: {
   page?: number;
   limit?: number;
   sortBy?: 'rating' | 'name' | 'experience';
+  includeInactive?: boolean;
 }): Promise<{ lawyers: Lawyer[]; total: number; page: number; totalPages: number }> {
-  const { query = '', specialization = '', city = '', page = 1, limit = 12, sortBy = 'rating' } = opts;
+  const { query = '', specialization = '', city = '', page = 1, limit = 12, sortBy = 'rating', includeInactive = false } = opts;
 
-  const where: Record<string, unknown> = { isActive: true };
+  const where: Record<string, unknown> = includeInactive ? {} : { isActive: true };
 
   if (query) {
     where.OR = [
