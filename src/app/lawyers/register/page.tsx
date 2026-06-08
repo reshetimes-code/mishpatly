@@ -159,6 +159,8 @@ export default function LawyerRegisterPage() {
     licenseNumber: '',
     phone: '',
     email: '',
+    password: '',
+    passwordConfirm: '',
     city: '',
     address: '',
     courtDistrict: '',
@@ -283,6 +285,16 @@ export default function LawyerRegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
+    if (form.password.length < 6) {
+      setError('סיסמה חייבת להכיל לפחות 6 תווים');
+      return;
+    }
+
+    if (form.password !== form.passwordConfirm) {
+      setError('הסיסמאות אינן תואמות');
+      return;
+    }
+
     // Check website question first
     const canProceed = await checkWebsiteAndSubmit();
     if (!canProceed) return;
@@ -291,11 +303,12 @@ export default function LawyerRegisterPage() {
     setError('');
 
     try {
+      const { passwordConfirm, ...submitData } = form;
       const res = await fetch('/api/lawyers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...form,
+          ...submitData,
           profileImage: logoImage || '',
           coverImage: coverImage || '',
           galleryImages,
@@ -304,6 +317,12 @@ export default function LawyerRegisterPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        if (data.token) {
+          localStorage.setItem('lawyerToken', data.token);
+          if (data.lawyer?.slug) {
+            localStorage.setItem('lawyerSlug', data.lawyer.slug);
+          }
+        }
         setSuccess(true);
       } else {
         setError(data.error || 'שגיאה בהרשמה');
@@ -325,11 +344,13 @@ export default function LawyerRegisterPage() {
           </div>
           <h1 className="text-2xl font-bold text-primary mb-2">ההרשמה התקבלה!</h1>
           <p className="text-gray-600 mb-6">
-            הכרטיס שלכם נוצר בהצלחה ומופיע כעת בפורטל עורכי הדין.
+            הכרטיס שלכם נוצר בהצלחה וממתין לאישור מנהל המערכת.
+            <br />
+            <span className="text-sm text-gray-400">לאחר האישור, הכרטיס יופיע בפורטל עורכי הדין.</span>
           </p>
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Link href="/lawyers" className="rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-light transition-colors">
-              לפורטל עורכי הדין
+            <Link href="/lawyers/login" className="rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-white hover:bg-primary-light transition-colors">
+              כניסה לחשבון
             </Link>
             <Link href="/" className="rounded-lg border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
               לדף הבית
@@ -428,6 +449,30 @@ export default function LawyerRegisterPage() {
                     onChange={(e) => updateField('whatsapp', e.target.value)}
                     className="w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
                     placeholder="050-1234567"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">סיסמה *</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={form.password}
+                    onChange={(e) => updateField('password', e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    placeholder="לפחות 6 תווים"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">אישור סיסמה *</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={form.passwordConfirm}
+                    onChange={(e) => updateField('passwordConfirm', e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    placeholder="הזינו את הסיסמה שוב"
                   />
                 </div>
                 <div>
@@ -607,7 +652,9 @@ export default function LawyerRegisterPage() {
             >
               {submitting ? 'שולח...' : 'צרו את הכרטיס שלי'}
             </button>
-            <p className="text-xs text-gray-400">* שדות חובה. הכרטיס יופיע מיד בפורטל.</p>
+            <p className="text-xs text-gray-400">* שדות חובה. הכרטיס יופיע לאחר אישור מנהל.
+              <Link href="/lawyers/login" className="text-accent hover:underline mr-2">כבר רשומים? התחברו</Link>
+            </p>
           </div>
         </form>
       </div>

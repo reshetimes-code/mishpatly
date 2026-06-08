@@ -346,6 +346,15 @@ export default function AdminJudgmentsPage() {
                       <td className="px-4 py-3">{statusBadge(j.status)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
+                          <a
+                            href={`/judgment/${j.slug || j.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition"
+                            title="צפייה בפסק דין"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </a>
                           <button
                             onClick={() => openEditModal(j.id)}
                             className="p-1.5 text-gray-400 hover:text-accent hover:bg-accent/10 rounded-lg transition"
@@ -356,12 +365,12 @@ export default function AdminJudgmentsPage() {
                           <button
                             onClick={() => handleToggleVisibility(j.id, j.status)}
                             className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition"
-                            title={j.status === 'PUBLISHED' ? 'הסתר' : 'הצג'}
+                            title={j.status === 'PUBLISHED' ? 'הסתר' : 'פרסם'}
                           >
                             {j.status === 'PUBLISHED' ? (
                               <EyeOff className="w-4 h-4" />
                             ) : (
-                              <Eye className="w-4 h-4" />
+                              <EyeOff className="w-4 h-4 rotate-180" />
                             )}
                           </button>
                           <button

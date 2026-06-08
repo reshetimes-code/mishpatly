@@ -130,6 +130,7 @@ model Lawyer {
   bio             String?        @db.Text
   website         String?
   whatsapp        String?
+  passwordHash    String?        @map("password_hash")
   rating          Float          @default(0)
   reviewCount     Int            @default(0) @map("review_count")
   isVerified      Boolean        @default(false) @map("is_verified")

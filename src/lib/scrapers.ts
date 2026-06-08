@@ -54,6 +54,22 @@ function parseDate(dateStr: string): string {
 }
 
 // ============================================================
+// Helper: detect non-judgment content (site pages, navigation, etc.)
+// ============================================================
+function isNonJudgmentContent(text: string): boolean {
+  const lower = text.trim();
+  const nonJudgmentTerms = [
+    'תנאי שימוש', 'הצהרת נגישות', 'מדיניות פרטיות', 'מסמכים משפטיים',
+    'צור קשר', 'אודות', 'הרשמה', 'התחברות', 'כניסה למערכת',
+    'תקנון', 'שאלות נפוצות', 'עזרה', 'מפת אתר',
+    'דף הבית', 'ראשי', 'כל הזכויות שמורות',
+    'terms of use', 'privacy policy', 'accessibility', 'contact us',
+    'cookie', 'copyright',
+  ];
+  return nonJudgmentTerms.some(term => lower.includes(term));
+}
+
+// ============================================================
 // Helper: extract plaintiff/defendant from title text
 // Handles patterns like "X נ' Y", "X נגד Y", "X נ. Y"
 // ============================================================
@@ -87,6 +103,34 @@ function extractPartiesFromTitle(title: string): { plaintiff: string; defendant:
 
       // Limit length and skip obviously bad matches
       if (plaintiff.length > 2 && plaintiff.length < 100 && defendant.length > 2 && defendant.length < 100) {
+        return { plaintiff, defendant };
+      }
+    }
+  }
+
+  return { plaintiff: '', defendant: '' };
+}
+
+/**
+ * Try to extract party names from summary/description text when title extraction fails.
+ * Looks for patterns like "X נגד Y", "X חוטף תביעת ענק מ-Y", "תביעה של X נגד Y", etc.
+ */
+function extractPartiesFromText(text: string): { plaintiff: string; defendant: string } {
+  if (!text) return { plaintiff: '', defendant: '' };
+
+  // Try standard patterns in the text body
+  const patterns = [
+    /([א-ת\s"'.()־-]{3,40})\s+(?:נ['׳]|נגד|נ\.)\s+([א-ת\s"'.()־-]{3,40})/,
+    /תביע(?:ה|ת)\s+(?:של\s+)?([א-ת\s"'.()־-]{3,40})\s+(?:נגד|כנגד)\s+([א-ת\s"'.()־-]{3,40})/,
+    /([א-ת\s"'.()־-]{3,40})\s+(?:הגיש(?:ה)?|תבע(?:ה)?)\s+.*?(?:את|נגד)\s+([א-ת\s"'.()־-]{3,40})/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      const plaintiff = match[1].trim();
+      const defendant = match[2].trim();
+      if (plaintiff.length > 2 && plaintiff.length < 60 && defendant.length > 2 && defendant.length < 60) {
         return { plaintiff, defendant };
       }
     }
@@ -390,6 +434,12 @@ function mapNevoCourt(courtCode: string): string {
 }
 
 function createNevoJudgment(caseNumber: string, court: string, judges: string, date: string, plaintiff: string, defendant: string, summary: string, msgId: number): JudgmentInput {
+  // If no parties found from title parsing, try extracting from summary
+  if ((!plaintiff || !defendant) && summary) {
+    const fromSummary = extractPartiesFromText(summary);
+    plaintiff = plaintiff || fromSummary.plaintiff;
+    defendant = defendant || fromSummary.defendant;
+  }
   const parties = plaintiff && defendant ? `${plaintiff} נגד ${defendant}` : '';
   const title = parties ? `${caseNumber} - ${parties}` : `${caseNumber} - פסק דין`;
 
@@ -512,9 +562,15 @@ function parsePsakDinResults(html: string): JudgmentInput[] {
   // Create items from extracted data
   for (let i = 0; i < Math.min(titles.length, 50); i++) {
     const title = titles[i];
+    if (isNonJudgmentContent(title)) continue;
     const slug = slugs[i] || '';
     const date = dates[i] || '';
-    const { plaintiff, defendant } = extractPartiesFromTitle(title);
+    let { plaintiff, defendant } = extractPartiesFromTitle(title);
+    if (!plaintiff || !defendant) {
+      const fromText = extractPartiesFromText(title);
+      plaintiff = plaintiff || fromText.plaintiff;
+      defendant = defendant || fromText.defendant;
+    }
 
     items.push({
       title,
@@ -558,6 +614,7 @@ function parsePsakDinMagazine(html: string): JudgmentInput[] {
     const url = match[1];
     const title = match[2].trim();
     if (title.length < 5 || title.length > 200) continue;
+    if (isNonJudgmentContent(title)) continue;
 
     const { plaintiff: magPlaintiff, defendant: magDefendant } = extractPartiesFromTitle(title);
     items.push({
@@ -880,6 +937,7 @@ export async function scrapeTakdin(): Promise<{ items: JudgmentInput[]; errors: 
       const docMatch = match[0].match(/\/Document\/Index\/(\d+)/);
       const docId = docMatch ? docMatch[1] : '';
 
+      if (isNonJudgmentContent(title)) continue;
       const { plaintiff: tkPlaintiff, defendant: tkDefendant } = extractPartiesFromTitle(title);
       items.push({
         title,
@@ -972,6 +1030,7 @@ function parseDinArticles(html: string): JudgmentInput[] {
     const title = match[2].trim();
     if (title.length < 5 || title.length > 200) continue;
 
+    if (isNonJudgmentContent(title)) continue;
     const { plaintiff: dinPlaintiff, defendant: dinDefendant } = extractPartiesFromTitle(title);
     items.push({
       title,
@@ -1089,6 +1148,8 @@ function parseTolaatHTML(html: string, baseUrl: string): JudgmentInput[] {
     const rawText = match[2];
     const text = rawText.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     if (text.length < 5 || text.length > 300) continue;
+    // Skip non-judgment content
+    if (isNonJudgmentContent(text)) continue;
 
     const caseMatch = text.match(casePattern);
     const caseNumber = caseMatch ? caseMatch[1] : `TH-${idx + 1}`;
@@ -1102,8 +1163,13 @@ function parseTolaatHTML(html: string, baseUrl: string): JudgmentInput[] {
     let thDefendant = partiesMatch ? partiesMatch[2].trim() : '';
     if (!thPlaintiff || !thDefendant) {
       const extracted = extractPartiesFromTitle(text);
-      thPlaintiff = extracted.plaintiff;
-      thDefendant = extracted.defendant;
+      thPlaintiff = thPlaintiff || extracted.plaintiff;
+      thDefendant = thDefendant || extracted.defendant;
+    }
+    if (!thPlaintiff || !thDefendant) {
+      const fromText = extractPartiesFromText(text);
+      thPlaintiff = thPlaintiff || fromText.plaintiff;
+      thDefendant = thDefendant || fromText.defendant;
     }
 
     items.push({
@@ -1136,7 +1202,10 @@ function parseTolaatHTML(html: string, baseUrl: string): JudgmentInput[] {
       const text = match[2].trim();
       if (url.includes('login') || url.includes('register') || url.includes('about') ||
           url.includes('contact') || url.includes('terms') || url.includes('privacy') ||
+          url.includes('accessibility') || url.includes('nagishut') ||
           url === '/' || url.includes('javascript:') || url === '#') continue;
+      // Skip non-judgment content by title
+      if (isNonJudgmentContent(text)) continue;
 
       const caseMatch = text.match(casePattern);
       if (!caseMatch && text.length < 10) continue;
@@ -1152,8 +1221,13 @@ function parseTolaatHTML(html: string, baseUrl: string): JudgmentInput[] {
       let thDefendant2 = partiesMatch ? partiesMatch[2].trim() : '';
       if (!thPlaintiff2 || !thDefendant2) {
         const extracted = extractPartiesFromTitle(text);
-        thPlaintiff2 = extracted.plaintiff;
-        thDefendant2 = extracted.defendant;
+        thPlaintiff2 = thPlaintiff2 || extracted.plaintiff;
+        thDefendant2 = thDefendant2 || extracted.defendant;
+      }
+      if (!thPlaintiff2 || !thDefendant2) {
+        const fromText = extractPartiesFromText(text);
+        thPlaintiff2 = thPlaintiff2 || fromText.plaintiff;
+        thDefendant2 = thDefendant2 || fromText.defendant;
       }
 
       items.push({

@@ -58,6 +58,7 @@ export async function addLawyer(
     bio?: string;
     website?: string;
     whatsapp?: string;
+    passwordHash?: string;
     isActive?: boolean;
   }
 ): Promise<Lawyer> {
@@ -85,6 +86,7 @@ export async function addLawyer(
         bio: data.bio || null,
         website: data.website || null,
         whatsapp: data.whatsapp || null,
+        ...(data.passwordHash ? { passwordHash: data.passwordHash } : {}),
       },
     });
   }
@@ -110,6 +112,8 @@ export async function addLawyer(
       bio: data.bio || null,
       website: data.website || null,
       whatsapp: data.whatsapp || null,
+      ...(data.passwordHash ? { passwordHash: data.passwordHash } : {}),
+      ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
     },
   });
 }

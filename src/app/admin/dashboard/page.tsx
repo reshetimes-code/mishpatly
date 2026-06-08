@@ -77,6 +77,18 @@ export default function AdminDashboardPage() {
         fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } }),
         fetch('/api/admin/daily-import?view=history', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
+      if (statsRes.status === 401) {
+        const Swal = (await import('sweetalert2')).default;
+        await Swal.fire({
+          icon: 'warning',
+          title: 'שים לב!',
+          text: 'אתה לא מחובר. כדי להתחבר ולצפות בנתונים יש להתחבר מחדש.',
+          confirmButtonText: 'התחבר עכשיו',
+          confirmButtonColor: '#C9A84C',
+        });
+        window.location.href = '/admin/login';
+        return;
+      }
       if (statsRes.ok) setStats(await statsRes.json());
       if (historyRes.ok) {
         const h = await historyRes.json();
@@ -95,6 +107,17 @@ export default function AdminDashboardPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
+      if (res.status === 401) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'שים לב!',
+          text: 'אתה לא מחובר. כדי להתחבר ולצפות בנתונים יש להתחבר מחדש.',
+          confirmButtonText: 'התחבר עכשיו',
+          confirmButtonColor: '#C9A84C',
+        }).then(() => { window.location.href = '/admin/login'; });
+        setImporting(false);
+        return;
+      }
       if (res.ok) {
         Swal.fire({
           icon: 'success',

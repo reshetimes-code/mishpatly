@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getLawyerById, getLawyerByLicense, updateLawyer } from '@/lib/lawyer-store';
+import { getLawyerById, updateLawyer } from '@/lib/lawyer-store';
+import { verifyToken } from '@/lib/auth';
 
 // GET /api/lawyers/[id] - get lawyer by id
 export async function GET(
@@ -14,7 +15,8 @@ export async function GET(
   return NextResponse.json({ lawyer });
 }
 
-// PUT /api/lawyers/[id] - update lawyer (requires licenseNumber for auth)
+// PUT /api/lawyers/[id] - update lawyer
+// Auth: JWT token (admin or lawyer owner) OR licenseNumber fallback
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -25,21 +27,41 @@ export async function PUT(
   try {
     const body = await request.json();
 
-    // Verify ownership via license number
-    if (!body.licenseNumber) {
-      return NextResponse.json({ error: 'יש להזין מספר רישיון לאימות' }, { status: 401 });
-    }
-
     const lawyer = await getLawyerById(lawyerId);
     if (!lawyer) {
       return NextResponse.json({ error: 'עורך הדין לא נמצא' }, { status: 404 });
     }
 
-    if (lawyer.licenseNumber !== body.licenseNumber) {
-      return NextResponse.json({ error: 'מספר רישיון שגוי' }, { status: 403 });
+    // Check authorization
+    let isAdmin = false;
+    let isOwner = false;
+
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.slice(7);
+      const decoded = verifyToken(token);
+      if (decoded) {
+        if (decoded.role === 'ADMIN') {
+          isAdmin = true;
+        } else if (decoded.role === 'LAWYER' && decoded.lawyerId === lawyerId) {
+          isOwner = true;
+        }
+      }
     }
 
-    const updated = await updateLawyer(lawyerId, {
+    // Fallback: license number auth (for admin panel which sends licenseNumber)
+    if (!isAdmin && !isOwner && body.licenseNumber) {
+      if (lawyer.licenseNumber === body.licenseNumber) {
+        isOwner = true;
+      }
+    }
+
+    if (!isAdmin && !isOwner) {
+      return NextResponse.json({ error: 'אין הרשאה לעדכן כרטיס זה' }, { status: 403 });
+    }
+
+    // Only admin can change isVerified and isActive
+    const updateData: Record<string, unknown> = {
       fullName: body.fullName || undefined,
       phone: body.phone || undefined,
       email: body.email || undefined,
@@ -55,9 +77,14 @@ export async function PUT(
       bio: body.bio !== undefined ? (body.bio || null) : undefined,
       website: body.website !== undefined ? (body.website || null) : undefined,
       whatsapp: body.whatsapp !== undefined ? (body.whatsapp || null) : undefined,
-      isVerified: body.isVerified !== undefined ? Boolean(body.isVerified) : undefined,
-      isActive: body.isActive !== undefined ? Boolean(body.isActive) : undefined,
-    });
+    };
+
+    if (isAdmin) {
+      if (body.isVerified !== undefined) updateData.isVerified = Boolean(body.isVerified);
+      if (body.isActive !== undefined) updateData.isActive = Boolean(body.isActive);
+    }
+
+    const updated = await updateLawyer(lawyerId, updateData);
 
     return NextResponse.json({ success: true, lawyer: updated });
   } catch (e) {

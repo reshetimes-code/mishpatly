@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { Menu, X, ChevronDown } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 const navLinks = [
   { href: '/', label: 'דף הבית' },
@@ -18,11 +20,21 @@ const navLinks = [
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [lawyerSlug, setLawyerSlug] = useState<string | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem('lawyerToken');
+    const slug = localStorage.getItem('lawyerSlug');
+    if (token && slug) {
+      setLawyerSlug(slug);
+    }
   }, []);
 
   return (
@@ -63,7 +75,31 @@ export default function Header() {
               </Link>
             ))}
             <Link
+              href={lawyerSlug ? `/lawyers/${lawyerSlug}/edit` : '/lawyers/login'}
+              className="mr-2 px-4 py-2 border border-[#C9A84C]/50 text-[#C9A84C] text-sm font-medium rounded-lg transition-all duration-300 hover:bg-[#C9A84C]/10"
+            >
+              {lawyerSlug ? 'הכרטיס שלי' : 'כניסה לעורכי דין'}
+            </Link>
+            <Link
               href="/search"
+              onClick={(e) => {
+                if (pathname === '/search') {
+                  e.preventDefault();
+                  Swal.fire({
+                    icon: 'info',
+                    title: 'אתה כבר בדף החיפוש',
+                    text: 'השתמש בשדה החיפוש למטה כדי לחפש פסקי דין',
+                    confirmButtonText: 'הבנתי',
+                    confirmButtonColor: '#C9A84C',
+                    timer: 3000,
+                    timerProgressBar: true,
+                  }).then(() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    const input = document.querySelector<HTMLInputElement>('input[type="search"], input[type="text"], input[placeholder]');
+                    if (input) input.focus();
+                  });
+                }
+              }}
               className="mr-3 px-5 py-2 bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] text-sm font-bold rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-[#C9A84C]/25 hover:-translate-y-0.5"
             >
               חיפוש פסיקה
@@ -99,6 +135,13 @@ export default function Header() {
                 {link.label}
               </Link>
             ))}
+            <Link
+              href={lawyerSlug ? `/lawyers/${lawyerSlug}/edit` : '/lawyers/login'}
+              onClick={() => setMobileMenuOpen(false)}
+              className="block text-[#C9A84C] hover:text-white hover:bg-white/5 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 hover:pr-6"
+            >
+              {lawyerSlug ? 'הכרטיס שלי' : 'כניסה לעורכי דין'}
+            </Link>
           </nav>
         </div>
       </div>

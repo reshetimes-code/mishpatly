@@ -167,9 +167,8 @@ export default function LawyerEditPage() {
   const router = useRouter();
   const slug = decodeURIComponent(params.slug as string);
 
-  const [step, setStep] = useState<'verify' | 'edit'>('verify');
-  const [licenseInput, setLicenseInput] = useState('');
-  const [verifyError, setVerifyError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState('');
   const [lawyer, setLawyer] = useState<LawyerData | null>(null);
 
   const [form, setForm] = useState({
@@ -193,56 +192,58 @@ export default function LawyerEditPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  // Load lawyer data by slug to get ID
+  // Verify JWT token and load lawyer data
   useEffect(() => {
     async function load() {
-      const res = await fetch(`/api/lawyers?q=${encodeURIComponent(slug)}&limit=100`);
+      const token = localStorage.getItem('lawyerToken');
+      if (!token) {
+        setAuthError('יש להתחבר כדי לערוך את הכרטיס');
+        setLoading(false);
+        return;
+      }
+
+      // Find lawyer by slug
+      const res = await fetch(`/api/lawyers?q=${encodeURIComponent(slug)}&limit=100&all=true`);
       const data = await res.json();
       const found = data.lawyers?.find((l: LawyerData) => l.slug === slug);
-      if (found) setLawyer(found);
+
+      if (!found) {
+        setAuthError('הכרטיס לא נמצא');
+        setLoading(false);
+        return;
+      }
+
+      // Verify the token belongs to this lawyer by checking stored slug
+      const storedSlug = localStorage.getItem('lawyerSlug');
+      if (storedSlug !== slug) {
+        setAuthError('אין הרשאה לערוך כרטיס זה');
+        setLoading(false);
+        return;
+      }
+
+      setLawyer(found);
+      const l = found;
+      setForm({
+        fullName: l.fullName || '',
+        phone: l.phone || '',
+        email: l.email || '',
+        city: l.city || '',
+        address: l.address || '',
+        courtDistrict: l.courtDistrict || '',
+        yearsExperience: l.yearsExperience ? String(l.yearsExperience) : '',
+        education: l.education || '',
+        bio: l.bio || '',
+        website: l.website || '',
+        whatsapp: l.whatsapp || '',
+        specializations: l.specializations || [],
+      });
+      setProfileImage(l.profileImage || null);
+      setCoverImage(l.coverImage || null);
+      setGalleryImages(l.galleryImages || []);
+      setLoading(false);
     }
     load();
   }, [slug]);
-
-  async function handleVerify(e: React.FormEvent) {
-    e.preventDefault();
-    setVerifyError('');
-
-    if (!lawyer) {
-      setVerifyError('עורך הדין לא נמצא');
-      return;
-    }
-
-    // Try to verify by fetching with the license
-    const res = await fetch(`/api/lawyers/${lawyer.id}`);
-    const data = await res.json();
-
-    if (!data.lawyer || data.lawyer.licenseNumber !== licenseInput) {
-      setVerifyError('מספר רישיון שגוי');
-      return;
-    }
-
-    // Populate form
-    const l = data.lawyer;
-    setForm({
-      fullName: l.fullName || '',
-      phone: l.phone || '',
-      email: l.email || '',
-      city: l.city || '',
-      address: l.address || '',
-      courtDistrict: l.courtDistrict || '',
-      yearsExperience: l.yearsExperience ? String(l.yearsExperience) : '',
-      education: l.education || '',
-      bio: l.bio || '',
-      website: l.website || '',
-      whatsapp: l.whatsapp || '',
-      specializations: l.specializations || [],
-    });
-    setProfileImage(l.profileImage || null);
-    setCoverImage(l.coverImage || null);
-    setGalleryImages(l.galleryImages || []);
-    setStep('edit');
-  }
 
   function updateField(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -264,11 +265,14 @@ export default function LawyerEditPage() {
     setError('');
 
     try {
+      const token = localStorage.getItem('lawyerToken');
       const res = await fetch(`/api/lawyers/${lawyer.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
-          licenseNumber: licenseInput,
           ...form,
           profileImage: profileImage || '',
           coverImage: coverImage || '',
@@ -313,56 +317,30 @@ export default function LawyerEditPage() {
     );
   }
 
-  // Verify step - enter license number
-  if (step === 'verify') {
+  // Loading
+  if (loading) {
     return (
-      <div dir="rtl" className="min-h-screen bg-legal-bg text-legal-text">
-        <div className="bg-gradient-to-bl from-[#0B3C5D] via-[#072a42] to-[#0B3C5D] text-white py-10">
-          <div className="max-w-lg mx-auto px-4 text-center">
-            <h1 className="text-3xl font-extrabold mb-2">עריכת <span className="text-gradient-gold">כרטיס ביקור</span></h1>
-            <p className="text-blue-200">הזינו את מספר הרישיון שלכם לאימות זהות</p>
+      <div dir="rtl" className="min-h-screen bg-legal-bg flex items-center justify-center">
+        <div className="animate-pulse text-primary text-lg">טוען...</div>
+      </div>
+    );
+  }
+
+  // Auth error
+  if (authError) {
+    return (
+      <div dir="rtl" className="min-h-screen bg-legal-bg flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl p-8 shadow-lg text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-legal-danger/10 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-legal-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
           </div>
-        </div>
-        <div className="max-w-lg mx-auto px-4 py-8">
-          <form onSubmit={handleVerify} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-primary">אימות זהות</h2>
-                <p className="text-xs text-gray-400">הזינו את מספר הרישיון שהזנתם בהרשמה</p>
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">מספר רישיון</label>
-              <input
-                type="text"
-                required
-                value={licenseInput}
-                onChange={(e) => setLicenseInput(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-                placeholder="הזינו מספר רישיון"
-              />
-            </div>
-
-            {verifyError && (
-              <div className="rounded-lg bg-legal-danger/10 p-3 text-sm text-legal-danger mb-4">
-                {verifyError}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={!lawyer}
-              className="w-full rounded-lg bg-accent px-6 py-3 text-sm font-bold text-[#072a42] transition-all hover:bg-accent-light disabled:opacity-50"
-            >
-              {lawyer ? 'אימות וכניסה לעריכה' : 'טוען...'}
-            </button>
-          </form>
+          <h1 className="text-xl font-bold text-primary mb-2">{authError}</h1>
+          <p className="text-gray-600 mb-6">יש להתחבר לחשבון כדי לערוך את כרטיס הביקור.</p>
+          <Link href="/lawyers/login" className="inline-block rounded-lg bg-accent px-6 py-2.5 text-sm font-bold text-[#072a42] hover:bg-accent-light transition-colors">
+            כניסה לחשבון
+          </Link>
         </div>
       </div>
     );

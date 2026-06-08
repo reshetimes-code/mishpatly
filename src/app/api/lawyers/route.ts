@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addLawyer, searchLawyers, type LawyerProfile } from '@/lib/lawyer-store';
+import { hashPassword, generateLawyerToken } from '@/lib/auth';
 
 // GET /api/lawyers - search/list lawyers
 export async function GET(request: NextRequest) {
@@ -24,16 +25,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // Validate required fields
-    const required = ['fullName', 'licenseNumber', 'phone', 'email', 'city', 'specializations'];
+    const required = ['fullName', 'licenseNumber', 'phone', 'email', 'city', 'specializations', 'password'];
     for (const field of required) {
       if (!body[field]) {
         return NextResponse.json({ error: `שדה חובה חסר: ${field}` }, { status: 400 });
       }
     }
 
+    if (typeof body.password !== 'string' || body.password.length < 6) {
+      return NextResponse.json({ error: 'סיסמה חייבת להכיל לפחות 6 תווים' }, { status: 400 });
+    }
+
     if (!Array.isArray(body.specializations) || body.specializations.length === 0) {
       return NextResponse.json({ error: 'יש לבחור לפחות תחום התמחות אחד' }, { status: 400 });
     }
+
+    const passwordHash = await hashPassword(body.password);
 
     const lawyer = await addLawyer({
       fullName: body.fullName,
@@ -52,10 +59,13 @@ export async function POST(request: NextRequest) {
       bio: body.bio || '',
       website: body.website || '',
       whatsapp: body.whatsapp || '',
-      isActive: true,
+      passwordHash,
+      isActive: false,
     });
 
-    return NextResponse.json({ success: true, lawyer }, { status: 201 });
+    const token = generateLawyerToken(lawyer.id);
+
+    return NextResponse.json({ success: true, lawyer, token }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

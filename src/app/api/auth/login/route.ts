@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateToken } from '@/lib/auth';
+import { getAdminPassword } from '@/app/api/admin/change-password/route';
 
-const DEV_ADMIN = {
-  email: 'admin@mishpatli.co.il',
-  password: 'admin123',
-  user: {
-    id: 1,
-    name: 'מנהל מערכת',
-    email: 'admin@mishpatli.co.il',
-    role: 'ADMIN' as const,
-  },
+const ADMIN_USER = {
+  id: 1,
+  name: 'מנהל מערכת',
+  email: 'admin@mishpatly.co.il',
+  role: 'ADMIN' as const,
 };
 
 export async function POST(request: NextRequest) {
@@ -21,10 +18,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'אימייל וסיסמה נדרשים' }, { status: 400 });
     }
 
-    // Dev admin login (replace with DB auth in production)
-    if (email === DEV_ADMIN.email && password === DEV_ADMIN.password) {
-      const token = generateToken(DEV_ADMIN.user.id, DEV_ADMIN.user.role);
-      return NextResponse.json({ token, user: DEV_ADMIN.user });
+    const isAdminEmail = email === ADMIN_USER.email || email === 'admin@mishpatli.co.il' || email === 'admin';
+    if (isAdminEmail && password === getAdminPassword()) {
+      const token = generateToken(ADMIN_USER.id, ADMIN_USER.role);
+      return NextResponse.json({ token, user: ADMIN_USER });
     }
 
     return NextResponse.json({ error: 'אימייל או סיסמה שגויים' }, { status: 401 });
