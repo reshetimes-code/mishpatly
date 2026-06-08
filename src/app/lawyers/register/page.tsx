@@ -175,6 +175,7 @@ export default function LawyerRegisterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [websiteHandled, setWebsiteHandled] = useState(false); // true once user answered the website question
 
   function updateField(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -197,8 +198,95 @@ export default function LawyerRegisterPage() {
     setGalleryImages((prev) => prev.filter((_, i) => i !== index));
   }
 
+  async function checkWebsiteAndSubmit() {
+    if (form.website || websiteHandled) {
+      return true; // has website or already answered
+    }
+
+    const Swal = (await import('sweetalert2')).default;
+
+    const result = await Swal.fire({
+      title: 'אין לך אתר אינטרנט?',
+      text: 'האם תרצה לקבל הצעה לבניית אתר מקצועי לעסק שלך?',
+      icon: 'question',
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: 'כן, אשמח להצעה',
+      denyButtonText: 'לא מעוניין באתר',
+      cancelButtonText: 'חזרה',
+      confirmButtonColor: '#C9A84C',
+      denyButtonColor: '#6b7280',
+      reverseButtons: true,
+    });
+
+    if (result.isConfirmed) {
+      // User wants a website quote - show details form
+      const detailsResult = await Swal.fire({
+        title: 'השאירו פרטים להצעה',
+        html: `
+          <div style="text-align:right;direction:rtl">
+            <p style="margin-bottom:12px;color:#666;font-size:14px">ספרו לנו מה תרצו באתר ונחזור אליכם עם הצעה</p>
+            <textarea id="swal-details" class="swal2-textarea" placeholder="מה הייתם רוצים באתר? (לדוגמה: אתר תדמית, בלוג משפטי, מערכת תורים...)" style="text-align:right;direction:rtl;min-height:100px"></textarea>
+          </div>
+        `,
+        confirmButtonText: 'שליחה והמשך הרשמה',
+        cancelButtonText: 'חזרה',
+        showCancelButton: true,
+        confirmButtonColor: '#C9A84C',
+        preConfirm: () => {
+          const details = (document.getElementById('swal-details') as HTMLTextAreaElement)?.value;
+          if (!details || details.trim().length < 5) {
+            Swal.showValidationMessage('נא לתאר בקצרה מה תרצו באתר');
+            return false;
+          }
+          return details;
+        },
+      });
+
+      if (detailsResult.isConfirmed && detailsResult.value) {
+        // Send email with website request
+        try {
+          await fetch('/api/lawyers/website-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fullName: form.fullName,
+              phone: form.phone,
+              email: form.email,
+              details: detailsResult.value,
+            }),
+          });
+        } catch { /* continue even if email fails */ }
+
+        setWebsiteHandled(true);
+        await Swal.fire({
+          icon: 'success',
+          title: 'הפרטים נשלחו!',
+          text: 'ניצור איתכם קשר בהקדם עם הצעה לבניית אתר.',
+          confirmButtonColor: '#0B3C5D',
+          timer: 3000,
+        });
+        return true;
+      }
+      return false; // user cancelled the details form
+    }
+
+    if (result.isDenied) {
+      // User doesn't want a website
+      setWebsiteHandled(true);
+      return true;
+    }
+
+    return false; // user clicked cancel/back
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // Check website question first
+    const canProceed = await checkWebsiteAndSubmit();
+    if (!canProceed) return;
+
     setSubmitting(true);
     setError('');
 
@@ -347,10 +435,13 @@ export default function LawyerRegisterPage() {
                   <input
                     type="url"
                     value={form.website}
-                    onChange={(e) => updateField('website', e.target.value)}
+                    onChange={(e) => { updateField('website', e.target.value); setWebsiteHandled(false); }}
                     className="w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
                     placeholder="https://www.example.com"
                   />
+                  {websiteHandled && !form.website && (
+                    <p className="text-xs text-green-600 mt-1">&#10003; לא מעוניין באתר</p>
+                  )}
                 </div>
               </div>
             </div>
