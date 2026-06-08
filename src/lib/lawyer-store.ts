@@ -8,11 +8,26 @@ import type { Lawyer, LawyerReview } from '@prisma/client';
 export type LawyerProfile = Lawyer;
 export type { LawyerReview };
 
+const hebrewToLatin: Record<string, string> = {
+  'א': 'a', 'ב': 'b', 'ג': 'g', 'ד': 'd', 'ה': 'h', 'ו': 'v',
+  'ז': 'z', 'ח': 'ch', 'ט': 't', 'י': 'y', 'כ': 'k', 'ך': 'k',
+  'ל': 'l', 'מ': 'm', 'ם': 'm', 'נ': 'n', 'ן': 'n', 'ס': 's',
+  'ע': 'a', 'פ': 'p', 'ף': 'f', 'צ': 'ts', 'ץ': 'ts', 'ק': 'k',
+  'ר': 'r', 'ש': 'sh', 'ת': 't',
+};
+
 export function createLawyerSlug(name: string): string {
-  return name
-    .replace(/[^\w\u0590-\u05FF\s-]/g, '')
-    .replace(/\s+/g, '-')
+  // Remove common Hebrew titles
+  const cleaned = name.replace(/עו"ד|עו״ד|עורך דין|עורכת דין/g, '').trim();
+
+  const transliterated = Array.from(cleaned)
+    .map((ch) => hebrewToLatin[ch] || (/[a-zA-Z0-9-]/.test(ch) ? ch : /\s/.test(ch) ? '-' : ''))
+    .join('');
+
+  return transliterated
     .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase()
     .substring(0, 60) || `lawyer-${Date.now()}`;
 }
 
