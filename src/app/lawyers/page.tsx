@@ -108,7 +108,7 @@ export default async function LawyersPage({
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-6 lg:flex-row">
           {/* Sidebar filters */}
-          <aside className="w-full shrink-0 lg:w-56">
+          <aside className="w-full shrink-0 lg:w-56 order-last lg:order-first">
             <details className="group rounded-lg border border-gray-200 bg-white lg:open" open>
               <summary className="cursor-pointer select-none px-4 py-3 text-sm font-bold text-primary lg:pointer-events-none lg:list-none">
                 <span className="inline lg:hidden">סינון &#x25BE;</span>

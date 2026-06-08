@@ -354,7 +354,7 @@ export default async function JudgmentPage({ params }: PageProps) {
             </main>
 
             {/* Sidebar */}
-            <aside className="w-full lg:w-80 shrink-0 flex flex-col gap-5">
+            <aside className="w-full lg:w-80 shrink-0 flex flex-col gap-5 order-last lg:order-first">
               <Link
                 href={`/removal-request?judgment=${slug}`}
                 className="flex items-center justify-center gap-2 bg-[#B83232] hover:bg-red-700 text-white font-bold rounded-xl px-5 py-3.5 transition-all shadow-sm text-center hover:shadow-md"

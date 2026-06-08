@@ -270,7 +270,7 @@ export default async function SearchPage({
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-6 lg:flex-row">
           {/* ===== Filter Sidebar ===== */}
-          <aside className="w-full shrink-0 lg:w-64">
+          <aside className="w-full shrink-0 lg:w-64 order-last lg:order-first">
             <details className="group rounded-lg border border-gray-200 bg-white lg:open" open>
               <summary className="cursor-pointer select-none px-4 py-3 text-sm font-bold text-primary lg:pointer-events-none lg:list-none">
                 <span className="inline lg:hidden">סינון תוצאות &#x25BE;</span>
