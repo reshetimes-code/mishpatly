@@ -8,12 +8,12 @@ export async function GET(
 ) {
   const { id } = await params;
   const lawyerId = parseInt(id, 10);
-  const lawyer = getLawyerById(lawyerId);
+  const lawyer = await getLawyerById(lawyerId);
   if (!lawyer) {
     return NextResponse.json({ error: 'עורך הדין לא נמצא' }, { status: 404 });
   }
 
-  const reviews = getReviewsByLawyerId(lawyerId);
+  const reviews = await getReviewsByLawyerId(lawyerId);
   return NextResponse.json({ reviews, total: reviews.length });
 }
 
@@ -32,7 +32,7 @@ export async function POST(
       return NextResponse.json({ error: 'יש למלא שם, דירוג וטקסט' }, { status: 400 });
     }
 
-    const result = addReview({
+    const result = await addReview({
       lawyerId,
       reviewerName: body.reviewerName,
       rating: parseInt(body.rating, 10),

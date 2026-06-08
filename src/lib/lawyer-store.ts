@@ -1,177 +1,167 @@
 /**
- * In-memory lawyer directory store
- * Manages lawyer profiles, reviews, and ratings
+ * Lawyer directory store — backed by PostgreSQL via Prisma
  */
 
-export interface LawyerProfile {
-  id: number;
-  slug: string;
-  fullName: string;
-  licenseNumber: string;
-  phone: string;
-  email: string;
-  profileImage: string;
-  coverImage: string;
-  galleryImages: string[];
-  specializations: string[];
-  courtDistrict: string;
-  city: string;
-  address: string;
-  yearsExperience: number;
-  education: string;
-  bio: string;
-  website: string;
-  whatsapp: string;
-  rating: number;
-  reviewCount: number;
-  isVerified: boolean;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import { prisma } from './db';
+import type { Lawyer, LawyerReview } from '@prisma/client';
 
-export interface LawyerReview {
-  id: number;
-  lawyerId: number;
-  reviewerName: string;
-  rating: number;
-  text: string;
-  isApproved: boolean;
-  aiScore: number; // 0-1, higher = more positive
-  createdAt: string;
-}
-
-// Global in-memory store
-const globalStore = globalThis as unknown as {
-  __lawyers: LawyerProfile[] | undefined;
-  __lawyerReviews: LawyerReview[] | undefined;
-  __lawyerNextId: number | undefined;
-  __reviewNextId: number | undefined;
-};
-
-if (!globalStore.__lawyers) {
-  globalStore.__lawyers = [];
-  globalStore.__lawyerReviews = [];
-  globalStore.__lawyerNextId = 1;
-  globalStore.__reviewNextId = 1;
-}
-
-function getLawyers(): LawyerProfile[] {
-  return globalStore.__lawyers!;
-}
-
-function getReviews(): LawyerReview[] {
-  return globalStore.__lawyerReviews!;
-}
-
-function nextLawyerId(): number {
-  return globalStore.__lawyerNextId!++;
-}
-
-function nextReviewId(): number {
-  return globalStore.__reviewNextId!++;
-}
+export type LawyerProfile = Lawyer;
+export type { LawyerReview };
 
 export function createLawyerSlug(name: string): string {
-  const base = name
+  return name
     .replace(/[^\w\u0590-\u05FF\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .substring(0, 60) || `lawyer-${Date.now()}`;
+}
 
-  const store = getLawyers();
-  let slug = base;
+async function ensureUniqueSlug(baseSlug: string): Promise<string> {
+  let slug = baseSlug;
   let counter = 1;
-  while (store.find((l) => l.slug === slug)) {
-    slug = `${base}-${counter++}`;
+  while (await prisma.lawyer.findUnique({ where: { slug } })) {
+    slug = `${baseSlug}-${counter++}`;
   }
   return slug;
 }
 
-export function addLawyer(
-  data: Omit<LawyerProfile, 'id' | 'slug' | 'rating' | 'reviewCount' | 'isVerified' | 'createdAt' | 'updatedAt'>
-): LawyerProfile {
-  const store = getLawyers();
-
+export async function addLawyer(
+  data: {
+    fullName: string;
+    licenseNumber: string;
+    phone: string;
+    email: string;
+    profileImage?: string;
+    coverImage?: string;
+    galleryImages?: string[];
+    specializations: string[];
+    courtDistrict?: string;
+    city: string;
+    address?: string;
+    yearsExperience?: number;
+    education?: string;
+    bio?: string;
+    website?: string;
+    whatsapp?: string;
+    isActive?: boolean;
+  }
+): Promise<Lawyer> {
   // Check duplicate by license number
-  const existing = store.find((l) => l.licenseNumber === data.licenseNumber);
+  const existing = await prisma.lawyer.findUnique({
+    where: { licenseNumber: data.licenseNumber },
+  });
+
   if (existing) {
-    Object.assign(existing, { ...data, updatedAt: new Date().toISOString() });
-    return existing;
+    return prisma.lawyer.update({
+      where: { id: existing.id },
+      data: {
+        fullName: data.fullName,
+        phone: data.phone,
+        email: data.email,
+        profileImage: data.profileImage || null,
+        coverImage: data.coverImage || null,
+        galleryImages: data.galleryImages || [],
+        specializations: data.specializations,
+        courtDistrict: data.courtDistrict || null,
+        city: data.city,
+        address: data.address || null,
+        yearsExperience: data.yearsExperience || 0,
+        education: data.education || null,
+        bio: data.bio || null,
+        website: data.website || null,
+        whatsapp: data.whatsapp || null,
+      },
+    });
   }
 
-  const lawyer: LawyerProfile = {
-    ...data,
-    id: nextLawyerId(),
-    slug: createLawyerSlug(data.fullName),
-    rating: 0,
-    reviewCount: 0,
-    isVerified: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  const slug = await ensureUniqueSlug(createLawyerSlug(data.fullName));
 
-  store.push(lawyer);
-  return lawyer;
+  return prisma.lawyer.create({
+    data: {
+      slug,
+      fullName: data.fullName,
+      licenseNumber: data.licenseNumber,
+      phone: data.phone,
+      email: data.email,
+      profileImage: data.profileImage || null,
+      coverImage: data.coverImage || null,
+      galleryImages: data.galleryImages || [],
+      specializations: data.specializations,
+      courtDistrict: data.courtDistrict || null,
+      city: data.city,
+      address: data.address || null,
+      yearsExperience: data.yearsExperience || 0,
+      education: data.education || null,
+      bio: data.bio || null,
+      website: data.website || null,
+      whatsapp: data.whatsapp || null,
+    },
+  });
 }
 
-export function getAllLawyers(): LawyerProfile[] {
-  return getLawyers().filter((l) => l.isActive);
+export async function getAllLawyers(): Promise<Lawyer[]> {
+  return prisma.lawyer.findMany({
+    where: { isActive: true },
+    orderBy: { rating: 'desc' },
+  });
 }
 
-export function getLawyerBySlug(slug: string): LawyerProfile | undefined {
-  return getLawyers().find((l) => l.slug === slug);
+export async function getLawyerBySlug(slug: string): Promise<Lawyer | null> {
+  return prisma.lawyer.findUnique({ where: { slug } });
 }
 
-export function getLawyerById(id: number): LawyerProfile | undefined {
-  return getLawyers().find((l) => l.id === id);
+export async function getLawyerById(id: number): Promise<Lawyer | null> {
+  return prisma.lawyer.findUnique({ where: { id } });
 }
 
-export function searchLawyers(opts: {
+export async function searchLawyers(opts: {
   query?: string;
   specialization?: string;
   city?: string;
   page?: number;
   limit?: number;
   sortBy?: 'rating' | 'name' | 'experience';
-}): { lawyers: LawyerProfile[]; total: number; page: number; totalPages: number } {
+}): Promise<{ lawyers: Lawyer[]; total: number; page: number; totalPages: number }> {
   const { query = '', specialization = '', city = '', page = 1, limit = 12, sortBy = 'rating' } = opts;
-  let filtered = getLawyers().filter((l) => l.isActive);
+
+  const where: Record<string, unknown> = { isActive: true };
 
   if (query) {
-    const q = query.toLowerCase();
-    filtered = filtered.filter(
-      (l) =>
-        l.fullName.toLowerCase().includes(q) ||
-        l.specializations.some((s) => s.includes(q)) ||
-        l.city.toLowerCase().includes(q) ||
-        l.bio.toLowerCase().includes(q)
-    );
+    where.OR = [
+      { fullName: { contains: query, mode: 'insensitive' } },
+      { city: { contains: query, mode: 'insensitive' } },
+      { bio: { contains: query, mode: 'insensitive' } },
+      { specializations: { has: query } },
+    ];
   }
 
   if (specialization) {
-    filtered = filtered.filter((l) => l.specializations.includes(specialization));
+    where.specializations = { has: specialization };
   }
 
   if (city) {
-    filtered = filtered.filter((l) => l.city === city);
+    where.city = city;
   }
 
-  // Sort
-  if (sortBy === 'rating') {
-    filtered.sort((a, b) => b.rating - a.rating || b.reviewCount - a.reviewCount);
-  } else if (sortBy === 'name') {
-    filtered.sort((a, b) => a.fullName.localeCompare(b.fullName, 'he'));
-  } else if (sortBy === 'experience') {
-    filtered.sort((a, b) => b.yearsExperience - a.yearsExperience);
-  }
+  const orderBy =
+    sortBy === 'name'
+      ? { fullName: 'asc' as const }
+      : sortBy === 'experience'
+        ? { yearsExperience: 'desc' as const }
+        : { rating: 'desc' as const };
 
-  const total = filtered.length;
-  const skip = (page - 1) * limit;
-  const paginated = filtered.slice(skip, skip + limit);
+  const [lawyers, total] = await Promise.all([
+    prisma.lawyer.findMany({
+      where,
+      orderBy,
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.lawyer.count({ where }),
+  ]);
 
   return {
-    lawyers: paginated,
+    lawyers,
     total,
     page,
     totalPages: Math.ceil(total / limit),
@@ -182,10 +172,6 @@ export function searchLawyers(opts: {
 // Reviews with AI sentiment filtering
 // ============================================================
 
-/**
- * Simple AI-like sentiment analysis for Hebrew reviews
- * Returns score 0-1 (0 = very negative, 1 = very positive)
- */
 function analyzeSentiment(text: string): number {
   const lower = text.toLowerCase();
 
@@ -213,7 +199,6 @@ function analyzeSentiment(text: string): number {
     'fuck', 'shit', 'ass', 'dick', 'bitch',
   ];
 
-  // Check for profanity - instant reject
   for (const word of profanity) {
     if (lower.includes(word)) return 0;
   }
@@ -230,48 +215,51 @@ function analyzeSentiment(text: string): number {
   }
 
   const totalWords = negativeCount + positiveCount;
-  if (totalWords === 0) return 0.6; // Neutral defaults to slightly positive
+  if (totalWords === 0) return 0.6;
 
   const score = positiveCount / totalWords;
   return Math.round(score * 100) / 100;
 }
 
-export function addReview(data: {
+export async function addReview(data: {
   lawyerId: number;
   reviewerName: string;
   rating: number;
   text: string;
-}): { review: LawyerReview; approved: boolean; reason?: string } {
-  const reviews = getReviews();
-  const lawyer = getLawyerById(data.lawyerId);
+}): Promise<{ review: LawyerReview; approved: boolean; reason?: string }> {
+  const lawyer = await getLawyerById(data.lawyerId);
   if (!lawyer) {
     throw new Error('עורך הדין לא נמצא');
   }
 
-  // AI sentiment analysis
   const aiScore = analyzeSentiment(data.text);
   const isApproved = aiScore >= 0.3 && data.rating >= 2;
 
-  const review: LawyerReview = {
-    id: nextReviewId(),
-    lawyerId: data.lawyerId,
-    reviewerName: data.reviewerName,
-    rating: Math.min(5, Math.max(1, data.rating)),
-    text: data.text,
-    isApproved,
-    aiScore,
-    createdAt: new Date().toISOString(),
-  };
+  const review = await prisma.lawyerReview.create({
+    data: {
+      lawyerId: data.lawyerId,
+      reviewerName: data.reviewerName,
+      rating: Math.min(5, Math.max(1, data.rating)),
+      text: data.text,
+      isApproved,
+      aiScore,
+    },
+  });
 
-  reviews.push(review);
-
-  // Update lawyer rating
   if (isApproved) {
-    const approvedReviews = reviews.filter((r) => r.lawyerId === data.lawyerId && r.isApproved);
-    const avgRating = approvedReviews.reduce((sum, r) => sum + r.rating, 0) / approvedReviews.length;
-    lawyer.rating = Math.round(avgRating * 10) / 10;
-    lawyer.reviewCount = approvedReviews.length;
-    lawyer.updatedAt = new Date().toISOString();
+    const agg = await prisma.lawyerReview.aggregate({
+      where: { lawyerId: data.lawyerId, isApproved: true },
+      _avg: { rating: true },
+      _count: true,
+    });
+
+    await prisma.lawyer.update({
+      where: { id: data.lawyerId },
+      data: {
+        rating: Math.round((agg._avg.rating || 0) * 10) / 10,
+        reviewCount: agg._count,
+      },
+    });
   }
 
   return {
@@ -283,52 +271,31 @@ export function addReview(data: {
   };
 }
 
-export function getReviewsByLawyerId(lawyerId: number, onlyApproved = true): LawyerReview[] {
-  return getReviews()
-    .filter((r) => r.lawyerId === lawyerId && (!onlyApproved || r.isApproved))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+export async function getReviewsByLawyerId(lawyerId: number, onlyApproved = true): Promise<LawyerReview[]> {
+  return prisma.lawyerReview.findMany({
+    where: {
+      lawyerId,
+      ...(onlyApproved ? { isApproved: true } : {}),
+    },
+    orderBy: { createdAt: 'desc' },
+  });
 }
 
-export function getLawyerStats() {
-  const lawyers = getLawyers();
-  const reviews = getReviews();
+export async function getLawyerStats() {
+  const [totalLawyers, activeLawyers, totalReviews, approvedReviews] = await Promise.all([
+    prisma.lawyer.count(),
+    prisma.lawyer.count({ where: { isActive: true } }),
+    prisma.lawyerReview.count(),
+    prisma.lawyerReview.count({ where: { isApproved: true } }),
+  ]);
+
   return {
-    totalLawyers: lawyers.length,
-    activeLawyers: lawyers.filter((l) => l.isActive).length,
-    totalReviews: reviews.length,
-    approvedReviews: reviews.filter((r) => r.isApproved).length,
-    rejectedReviews: reviews.filter((r) => !r.isApproved).length,
+    totalLawyers,
+    activeLawyers,
+    totalReviews,
+    approvedReviews,
+    rejectedReviews: totalReviews - approvedReviews,
   };
 }
 
-// All specializations for filter dropdown
-export const SPECIALIZATIONS = [
-  'דיני משפחה',
-  'דיני עבודה',
-  'משפט פלילי',
-  'נזיקין ותאונות',
-  'מקרקעין ונדל"ן',
-  'דיני חברות ומסחרי',
-  'משפט מנהלי',
-  'דיני ביטוח',
-  'הוצאה לפועל',
-  'דיני מיסים',
-  'קניין רוחני',
-  'דיני צרכנות',
-  'חדלות פירעון',
-  'דיני תכנון ובנייה',
-  'דיני הגירה',
-  'דיני צבא וביטחון',
-  'דיני אינטרנט וסייבר',
-  'גישור ובוררות',
-  'דיני חוזים',
-  'דיני בנקאות',
-];
-
-export const CITIES = [
-  'תל אביב', 'ירושלים', 'חיפה', 'באר שבע', 'ראשון לציון',
-  'פתח תקווה', 'אשדוד', 'נתניה', 'חולון', 'בני ברק',
-  'רמת גן', 'אשקלון', 'רחובות', 'בת ים', 'הרצליה',
-  'כפר סבא', 'רעננה', 'מודיעין', 'נצרת', 'עכו',
-  'טבריה', 'קריית שמונה', 'אילת', 'עפולה', 'חדרה',
-];
+export { SPECIALIZATIONS, CITIES } from './lawyer-constants';

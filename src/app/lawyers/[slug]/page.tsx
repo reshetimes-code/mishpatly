@@ -19,13 +19,13 @@ export default async function LawyerProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const lawyer = getLawyerBySlug(slug);
+  const lawyer = await getLawyerBySlug(slug);
 
   if (!lawyer) {
     notFound();
   }
 
-  const reviews = getReviewsByLawyerId(lawyer.id);
+  const reviews = await getReviewsByLawyerId(lawyer.id);
 
   return (
     <div dir="rtl" className="min-h-screen bg-legal-bg text-legal-text">
@@ -76,7 +76,7 @@ export default async function LawyerProfilePage({
 
               {/* Specializations */}
               <div className="flex flex-wrap gap-2 mb-4">
-                {lawyer.specializations.map((s) => (
+                {lawyer.specializations.map((s: string) => (
                   <span key={s} className="rounded-full bg-accent/10 px-3 py-1 text-sm font-medium text-accent">{s}</span>
                 ))}
               </div>
@@ -121,7 +121,7 @@ export default async function LawyerProfilePage({
               <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                 <h2 className="text-lg font-bold text-primary mb-4">גלריה</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {lawyer.galleryImages.map((img, i) => (
+                  {lawyer.galleryImages.map((img: string, i: number) => (
                     <img key={i} src={img} alt={`${lawyer.fullName} - תמונה ${i + 1}`} className="rounded-lg object-cover w-full h-32" />
                   ))}
                 </div>
@@ -136,7 +136,7 @@ export default async function LawyerProfilePage({
                 reviewerName: r.reviewerName,
                 rating: r.rating,
                 text: r.text,
-                createdAt: r.createdAt,
+                createdAt: r.createdAt.toISOString(),
               }))}
             />
           </div>

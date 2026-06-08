@@ -4,7 +4,7 @@ import { addLawyer, searchLawyers, type LawyerProfile } from '@/lib/lawyer-store
 // GET /api/lawyers - search/list lawyers
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
-  const result = searchLawyers({
+  const result = await searchLawyers({
     query: sp.get('q') || '',
     specialization: sp.get('specialization') || '',
     city: sp.get('city') || '',
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'יש לבחור לפחות תחום התמחות אחד' }, { status: 400 });
     }
 
-    const lawyer = addLawyer({
+    const lawyer = await addLawyer({
       fullName: body.fullName,
       licenseNumber: body.licenseNumber,
       phone: body.phone,

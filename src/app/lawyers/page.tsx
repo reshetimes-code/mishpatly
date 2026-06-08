@@ -31,7 +31,7 @@ export default async function LawyersPage({
   const currentPage = Math.max(1, parseInt(params.page ?? '1', 10) || 1);
   const sortBy = (params.sort as 'rating' | 'name' | 'experience') || 'rating';
 
-  const { lawyers, total, totalPages } = searchLawyers({
+  const { lawyers, total, totalPages } = await searchLawyers({
     query,
     specialization: specFilter,
     city: cityFilter,
@@ -40,7 +40,7 @@ export default async function LawyersPage({
     sortBy,
   });
 
-  const allLawyers = getAllLawyers();
+  const allLawyers = await getAllLawyers();
   const usedCities = Array.from(new Set(allLawyers.map((l) => l.city).filter(Boolean))).sort();
   const usedSpecs = Array.from(new Set(allLawyers.flatMap((l) => l.specializations).filter(Boolean))).sort();
 
@@ -251,7 +251,7 @@ export default async function LawyersPage({
 
                       {/* Specializations */}
                       <div className="flex flex-wrap gap-1.5 mb-3">
-                        {l.specializations.slice(0, 3).map((s) => (
+                        {l.specializations.slice(0, 3).map((s: string) => (
                           <span key={s} className="rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent">
                             {s}
                           </span>

@@ -110,3 +110,54 @@ model User {
 
   @@map("users")
 }
+
+model Lawyer {
+  id              Int            @id @default(autoincrement())
+  slug            String         @unique
+  fullName        String         @map("full_name")
+  licenseNumber   String         @unique @map("license_number")
+  phone           String
+  email           String
+  profileImage    String?        @map("profile_image") @db.Text
+  coverImage      String?        @map("cover_image") @db.Text
+  galleryImages   String[]       @map("gallery_images")
+  specializations String[]
+  courtDistrict   String?        @map("court_district")
+  city            String
+  address         String?
+  yearsExperience Int            @default(0) @map("years_experience")
+  education       String?
+  bio             String?        @db.Text
+  website         String?
+  whatsapp        String?
+  rating          Float          @default(0)
+  reviewCount     Int            @default(0) @map("review_count")
+  isVerified      Boolean        @default(false) @map("is_verified")
+  isActive        Boolean        @default(true) @map("is_active")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  reviews         LawyerReview[]
+
+  @@index([slug])
+  @@index([city])
+  @@index([isActive])
+  @@map("lawyers")
+}
+
+model LawyerReview {
+  id           Int      @id @default(autoincrement())
+  lawyerId     Int      @map("lawyer_id")
+  reviewerName String   @map("reviewer_name")
+  rating       Int
+  text         String   @db.Text
+  isApproved   Boolean  @default(false) @map("is_approved")
+  aiScore      Float    @default(0) @map("ai_score")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  lawyer       Lawyer   @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  @@index([lawyerId])
+  @@index([isApproved])
+  @@map("lawyer_reviews")
+}

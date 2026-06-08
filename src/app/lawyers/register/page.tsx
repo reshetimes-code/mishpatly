@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { SPECIALIZATIONS, CITIES } from '@/lib/lawyer-store';
+import { SPECIALIZATIONS, CITIES } from '@/lib/lawyer-constants';
 
 function ImageUploadBox({
   label,
