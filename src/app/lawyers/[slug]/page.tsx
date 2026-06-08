@@ -49,7 +49,21 @@ export default async function LawyerProfilePage({
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8 sm:px-6">
+      {/* Cover / Hero Image */}
+      <div className="relative w-full h-48 sm:h-64 overflow-hidden">
+        {lawyer.coverImage ? (
+          <img src={lawyer.coverImage} alt={lawyer.fullName} className="w-full h-full object-cover" />
+        ) : lawyer.profileImage ? (
+          <div className="w-full h-full bg-gradient-to-bl from-[#0B3C5D] via-[#072a42] to-[#0B3C5D] flex items-center justify-center">
+            <img src={lawyer.profileImage} alt={lawyer.fullName} className="h-full max-w-md object-contain opacity-30 blur-sm" />
+          </div>
+        ) : (
+          <div className="w-full h-full bg-gradient-to-bl from-[#0B3C5D] via-[#072a42] to-[#0B3C5D]" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 py-8 sm:px-6 -mt-16 relative z-10">
         <div className="grid gap-6 lg:grid-cols-3">
           {/* ===== Main Profile Card ===== */}
           <div className="lg:col-span-2 space-y-6">
@@ -59,10 +73,10 @@ export default async function LawyerProfilePage({
                   <img
                     src={lawyer.profileImage}
                     alt={lawyer.fullName}
-                    className="w-20 h-20 rounded-full object-cover shrink-0 border-2 border-gray-200"
+                    className="w-24 h-24 rounded-full object-cover shrink-0 border-4 border-white shadow-lg -mt-14"
                   />
                 ) : (
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-primary-light flex items-center justify-center text-white text-3xl font-bold shrink-0">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-primary-light flex items-center justify-center text-white text-3xl font-bold shrink-0 border-4 border-white shadow-lg -mt-14">
                     {lawyer.fullName.charAt(0)}
                   </div>
                 )}
