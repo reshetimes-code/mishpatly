@@ -225,10 +225,10 @@ export default async function JudgmentPage({ params }: PageProps) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <div dir="rtl" className="min-h-screen bg-[#FAFBFC] text-[#1a1a2e]">
+      <div dir="rtl" className="min-h-screen bg-[#f5f5f0] text-[#1a1a2e]">
         {/* Breadcrumbs */}
         <nav aria-label="Breadcrumb" className="bg-white border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3">
             <ol className="flex flex-wrap items-center gap-1 text-sm text-gray-500">
               <li><Link href="/" className="hover:text-[#C9A84C] transition-colors">דף הבית</Link></li>
               <li aria-hidden="true" className="mx-1">&gt;</li>
@@ -243,169 +243,155 @@ export default async function JudgmentPage({ params }: PageProps) {
           </div>
         </nav>
 
-        {/* Main layout */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
-          <div className="flex flex-col lg:flex-row gap-8">
-            {/* Content */}
-            <main className="flex-1 min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-bold leading-snug mb-2">
-                {personName ? (
-                  <>
-                    כל פסקי הדין עבור{' '}
-                    <span className="text-[#0B3C5D] text-3xl sm:text-4xl block mt-1">{personName}</span>
-                  </>
-                ) : (
-                  <>פסק דין {judgment.caseNumber}</>
-                )}
-              </h1>
-              <p className="text-lg text-gray-600 mb-6">
-                {judgment.caseNumber} | {caseTitle}
-              </p>
+        {/* Document header */}
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#0B3C5D] mb-1">
+            {judgment.caseNumber} - {judgment.plaintiff || 'התובע'} נ&apos; {judgment.defendant || 'הנתבע'}{judgment.proceedingType ? `, ${judgment.proceedingType}` : ''}
+          </h1>
+          <p className="text-sm text-gray-500 mb-4">
+            {judgment.caseNumber} | {judgment.court}
+          </p>
 
-              {/* Info grid */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-6 mb-6">
-                <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm">
-                  {[
-                    { label: 'מספר תיק', value: judgment.caseNumber },
-                    { label: 'בית משפט', value: judgment.court },
-                    { label: 'סוג הליך', value: judgment.proceedingType },
-                    { label: 'תאריך', value: formatDate(judgment.date) },
-                    { label: 'שופט/ת', value: judgment.judge },
-                    { label: 'סטטוס', value: judgment.status, badge: true },
-                  ].map((item) => (
-                    <div key={item.label}>
-                      <dt className="text-gray-500 mb-1">{item.label}</dt>
-                      <dd className="font-semibold">
-                        {item.badge ? (
-                          <span className="inline-block px-3 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                            {item.value}
-                          </span>
-                        ) : item.value || '-'}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
+          {/* Action buttons - top */}
+          <div className="flex flex-wrap gap-3 mb-6">
+            <button type="button" className="bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] font-bold px-6 py-2.5 rounded-lg transition-all shadow hover:shadow-lg hover:-translate-y-0.5 text-sm">
+              רכישת מסמך
+            </button>
+            <Link
+              href={`/removal-request?judgment=${slug}`}
+              className="bg-[#0B3C5D] hover:bg-[#072a42] text-white font-bold rounded-lg px-6 py-2.5 transition-all shadow-sm text-sm"
+            >
+              מחיקת אזכור
+            </Link>
+          </div>
+        </div>
 
+        {/* Document body */}
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 pb-10">
+          <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+            {/* Document content */}
+            <div className="px-6 sm:px-10 lg:px-16 py-8 sm:py-12">
               {/* Parties */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-6 mb-6">
-                <h2 className="text-lg font-bold mb-4">צדדים</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                  <div className="bg-[#FAFBFC] rounded-xl p-4">
-                    <span className="block text-gray-500 mb-1">תובע/ת (עותר)</span>
-                    <span className="font-bold text-base text-[#0B3C5D]">{judgment.plaintiff || '-'}</span>
-                  </div>
-                  <div className="bg-[#FAFBFC] rounded-xl p-4">
-                    <span className="block text-gray-500 mb-1">נתבע/ת (משיב)</span>
-                    <span className="font-bold text-base text-[#0B3C5D]">{judgment.defendant || '-'}</span>
-                  </div>
-                </div>
+              <div className="text-center mb-8">
+                <p className="text-lg font-bold text-[#0B3C5D] mb-2">{judgment.plaintiff || '-'}</p>
+                <p className="text-sm text-gray-500 font-semibold mb-2">נ ג ד</p>
+                <p className="text-lg font-bold text-[#0B3C5D]">{judgment.defendant || '-'}</p>
               </div>
 
-              {/* Summary */}
+              {/* Court */}
+              <h2 className="text-xl font-bold text-[#0B3C5D] text-center mb-2">{judgment.court}</h2>
+              <p className="text-center text-gray-600 mb-2">[ {formatDate(judgment.date)} ]</p>
+              {judgment.judge && (
+                <p className="text-center text-gray-700 mb-6">
+                  כבוד השופט/ת <span className="font-semibold">{judgment.judge}</span>
+                </p>
+              )}
+
+              {/* Case info line */}
+              <div className="text-center text-sm text-gray-500 mb-8 border-b border-gray-200 pb-6">
+                <p>מספר תיק: {judgment.caseNumber}{judgment.proceedingType ? ` | סוג הליך: ${judgment.proceedingType}` : ''}{judgment.category ? ` | ${judgment.category}` : ''}</p>
+              </div>
+
+              {/* Summary as intro */}
               {judgment.summary && (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-6 mb-6">
-                  <h2 className="text-lg font-bold mb-3">
-                    תקציר פסק הדין {personName ? `נגד ${personName}` : ''}
-                  </h2>
-                  <p className="leading-7 text-gray-700">{judgment.summary}</p>
+                <div className="mb-8">
+                  <h3 className="text-lg font-bold text-center mb-4">תקציר</h3>
+                  <p className="leading-8 text-gray-800 text-justify">{judgment.summary}</p>
                 </div>
               )}
 
-              {/* Full text */}
+              {/* Full text - document style */}
               {judgment.fullText.length > 0 && (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-6">
-                  <h2 className="text-lg font-bold mb-4">נוסח פסק הדין</h2>
-                  <p className="leading-7 text-gray-700 mb-4">{judgment.fullText[0]}</p>
+                <div>
+                  <h3 className="text-xl font-bold text-center mb-6">החלטה</h3>
+                  <div className="leading-8 text-gray-800 text-justify">
+                    <p className="mb-4">{judgment.fullText[0]}</p>
 
-                  {judgment.fullText.length > 1 && (
-                    <div className="relative">
-                      <div className="select-none pointer-events-none" aria-hidden="true">
-                        {judgment.fullText.slice(1).map((p, i) => (
-                          <p key={i} className="leading-7 text-gray-700 mb-4 blur-sm">{p}</p>
-                        ))}
+                    {judgment.fullText.length > 1 && (
+                      <div className="relative">
+                        <div className="select-none pointer-events-none" aria-hidden="true">
+                          {judgment.fullText.slice(1).map((p, i) => (
+                            <p key={i} className="mb-4 blur-[3px]">{p}</p>
+                          ))}
+                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-white/70 to-white flex flex-col items-center justify-end pb-10">
+                          <div className="bg-[#f9f6ee] border border-[#e8dfc0] rounded-xl p-6 text-center max-w-lg mx-4">
+                            <p className="text-gray-700 mb-1 font-semibold">במסמך זה מוצג רק דף ראשון של פסק הדין/ההחלטה,</p>
+                            <p className="text-gray-600 mb-4 text-sm">ולא ניתן בהכרח ללמוד ממנו על תוצאות ההליך. על מנת לצפות במסמך המלא, יש לרכוש אותו.</p>
+                            <button type="button" className="bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] font-bold px-8 py-3 rounded-lg transition-all shadow hover:shadow-lg hover:-translate-y-0.5">
+                              רכישת מסמך
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="absolute inset-0 bg-gradient-to-b from-white/40 to-white flex flex-col items-center justify-end pb-8">
-                        <p className="text-gray-600 mb-4 text-center text-sm sm:text-base">
-                          לצפייה בנוסח המלא של פסק הדין יש לרכוש את המסמך
-                        </p>
-                        <button type="button" className="bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] font-bold px-8 py-3 rounded-xl transition-all shadow hover:shadow-lg hover:-translate-y-0.5">
-                          לרכישת המסמך המלא
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* SEO content block */}
-              {personName && (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-6 mt-6">
-                  <h2 className="text-lg font-bold mb-3">מידע נוסף על פסק הדין</h2>
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    פסק דין זה עוסק ב{personName} ונדון ב{judgment.court} תחת מספר תיק {judgment.caseNumber}.
-                    {judgment.judge ? ` השופט/ת ${judgment.judge} דן/ה בתיק.` : ''}
-                    {judgment.proceedingType ? ` סוג ההליך: ${judgment.proceedingType}.` : ''}
-                    {judgment.category ? ` קטגוריה: ${judgment.category}.` : ''}
-                    {' '}לחיפוש פסקי דין נוספים בעניין {personName} או להגשת בקשת הסרת אזכור, השתמשו במנוע החיפוש של משפטלי.
-                  </p>
-                </div>
-              )}
-            </main>
+              {/* Parties summary at bottom */}
+              <div className="mt-8 pt-6 border-t border-gray-200 text-sm text-gray-700">
+                <p><strong>הצדדים במסמך זה:</strong> {[judgment.plaintiff, judgment.defendant].filter(Boolean).join(', ') || '-'}</p>
+              </div>
+            </div>
 
-            {/* Sidebar */}
-            <aside className="w-full lg:w-80 shrink-0 flex flex-col gap-5 order-last lg:order-first">
+            {/* Action buttons - bottom */}
+            <div className="bg-gray-50 border-t border-gray-200 px-6 sm:px-10 lg:px-16 py-5 flex flex-wrap gap-3">
+              <button type="button" className="bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] font-bold px-6 py-2.5 rounded-lg transition-all shadow hover:shadow-lg hover:-translate-y-0.5 text-sm">
+                רכישת מסמך
+              </button>
               <Link
                 href={`/removal-request?judgment=${slug}`}
-                className="flex items-center justify-center gap-2 bg-[#B83232] hover:bg-red-700 text-white font-bold rounded-xl px-5 py-3.5 transition-all shadow-sm text-center hover:shadow-md"
+                className="bg-[#0B3C5D] hover:bg-[#072a42] text-white font-bold rounded-lg px-6 py-2.5 transition-all shadow-sm text-sm"
               >
-                בקשת הסרת אזכור {personName ? `של ${personName}` : ''}
+                מחיקת אזכור
               </Link>
-
-              <button type="button" disabled className="flex items-center justify-center gap-2 bg-gray-200 text-gray-400 font-semibold rounded-xl px-5 py-3 cursor-not-allowed">
-                הורדת PDF (בקרוב)
-              </button>
-
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                <h3 className="font-bold mb-3 text-sm">שיתוף</h3>
-                <div className="flex gap-3">
-                  <a href={`https://wa.me/?text=${encodeURIComponent(`${judgment.caseNumber} ${caseTitle} - ${SITE_URL}/judgment/${slug}`)}`} target="_blank" rel="noopener noreferrer" title="שיתוף בוואטסאפ" className="flex items-center justify-center w-10 h-10 rounded-lg bg-green-50 hover:bg-green-100 transition-colors text-green-600">
-                    <span className="text-lg">W</span>
-                  </a>
-                  <a href={`mailto:?subject=${encodeURIComponent(`${judgment.caseNumber} ${caseTitle}`)}&body=${encodeURIComponent(`${SITE_URL}/judgment/${slug}`)}`} title="שיתוף במייל" className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors text-blue-600">
-                    <span className="text-lg">@</span>
-                  </a>
-                </div>
-              </div>
-
-              {relatedItems.length > 0 && (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                  <h3 className="font-bold mb-3 text-sm">פסקי דין קשורים</h3>
-                  <ul className="space-y-2">
-                    {relatedItems.map((rel) => (
-                      <li key={rel.slug}>
-                        <Link href={`/judgment/${rel.slug}`} className="block text-sm text-[#0B3C5D] hover:text-[#C9A84C] hover:underline transition-colors py-1">
-                          {rel.title}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {personName && (
-                <div className="bg-[#0B3C5D] rounded-2xl p-5 text-center">
-                  <p className="text-white text-sm mb-3">חיפוש פסקי דין נוספים</p>
-                  <Link
-                    href={`/search?q=${encodeURIComponent(personName)}`}
-                    className="inline-block w-full bg-[#C9A84C] text-[#072a42] font-bold rounded-xl px-4 py-2.5 text-sm transition-all hover:bg-[#D4B85E]"
-                  >
-                    חפש &quot;{personName}&quot;
-                  </Link>
-                </div>
-              )}
-            </aside>
+            </div>
           </div>
+
+          {/* Related & Search below document */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+            {relatedItems.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+                <h3 className="font-bold mb-3 text-sm text-[#0B3C5D]">פסקי דין קשורים</h3>
+                <ul className="space-y-2">
+                  {relatedItems.map((rel) => (
+                    <li key={rel.slug}>
+                      <Link href={`/judgment/${rel.slug}`} className="block text-sm text-[#0B3C5D] hover:text-[#C9A84C] hover:underline transition-colors py-1">
+                        {rel.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {personName && (
+              <div className="bg-[#0B3C5D] rounded-lg p-5 text-center flex flex-col justify-center">
+                <p className="text-white text-sm mb-3">חיפוש פסקי דין נוספים בעניין {personName}</p>
+                <Link
+                  href={`/search?q=${encodeURIComponent(personName)}`}
+                  className="inline-block bg-[#C9A84C] text-[#072a42] font-bold rounded-lg px-4 py-2.5 text-sm transition-all hover:bg-[#D4B85E]"
+                >
+                  חפש &quot;{personName}&quot;
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* SEO content block */}
+          {personName && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mt-6">
+              <h2 className="text-base font-bold mb-2 text-[#0B3C5D]">מידע נוסף על פסק הדין</h2>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                פסק דין זה עוסק ב{personName} ונדון ב{judgment.court} תחת מספר תיק {judgment.caseNumber}.
+                {judgment.judge ? ` השופט/ת ${judgment.judge} דן/ה בתיק.` : ''}
+                {judgment.proceedingType ? ` סוג ההליך: ${judgment.proceedingType}.` : ''}
+                {judgment.category ? ` קטגוריה: ${judgment.category}.` : ''}
+                {' '}לחיפוש פסקי דין נוספים בעניין {personName} או להגשת בקשת הסרת אזכור, השתמשו במנוע החיפוש של משפטלי.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </>
