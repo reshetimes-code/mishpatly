@@ -20,6 +20,12 @@ export default async function LawyerProfilePage({
 }) {
   const { slug: rawSlug } = await params;
   const slug = decodeURIComponent(rawSlug);
+
+  // Static routes like /lawyers/login and /lawyers/register are handled by their own pages
+  if (slug === 'login' || slug === 'register') {
+    notFound();
+  }
+
   const lawyer = await getLawyerBySlug(slug);
 
   if (!lawyer) {
