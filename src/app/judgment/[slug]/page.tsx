@@ -246,10 +246,10 @@ export default async function JudgmentPage({ params }: PageProps) {
         {/* Document header */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6">
           <h1 className="text-xl sm:text-2xl font-bold text-[#0B3C5D] mb-1">
-            {judgment.caseNumber} - {judgment.plaintiff || 'התובע'} נ&apos; {judgment.defendant || 'הנתבע'}{judgment.proceedingType ? `, ${judgment.proceedingType}` : ''}
+            {judgment.caseNumber}{judgment.plaintiff || judgment.defendant ? ` - ${[judgment.plaintiff, judgment.defendant].filter(Boolean).join(' נ\' ')}` : ''}{judgment.proceedingType ? `, ${judgment.proceedingType}` : ''}
           </h1>
           <p className="text-sm text-gray-500 mb-4">
-            {judgment.caseNumber} | {judgment.court}
+            {[judgment.caseNumber, judgment.court].filter(Boolean).join(' | ')}
           </p>
 
           {/* Action buttons - top */}
@@ -272,15 +272,17 @@ export default async function JudgmentPage({ params }: PageProps) {
             {/* Document content */}
             <div className="px-6 sm:px-10 lg:px-16 py-8 sm:py-12">
               {/* Parties */}
-              <div className="text-center mb-8">
-                <p className="text-lg font-bold text-[#0B3C5D] mb-2">{judgment.plaintiff || '-'}</p>
-                <p className="text-sm text-gray-500 font-semibold mb-2">נ ג ד</p>
-                <p className="text-lg font-bold text-[#0B3C5D]">{judgment.defendant || '-'}</p>
-              </div>
+              {(judgment.plaintiff || judgment.defendant) && (
+                <div className="text-center mb-8">
+                  {judgment.plaintiff && <p className="text-lg font-bold text-[#0B3C5D] mb-2">{judgment.plaintiff}</p>}
+                  {judgment.plaintiff && judgment.defendant && <p className="text-sm text-gray-500 font-semibold mb-2">נ ג ד</p>}
+                  {judgment.defendant && <p className="text-lg font-bold text-[#0B3C5D]">{judgment.defendant}</p>}
+                </div>
+              )}
 
               {/* Court */}
-              <h2 className="text-xl font-bold text-[#0B3C5D] text-center mb-2">{judgment.court}</h2>
-              <p className="text-center text-gray-600 mb-2">[ {formatDate(judgment.date)} ]</p>
+              {judgment.court && <h2 className="text-xl font-bold text-[#0B3C5D] text-center mb-2">{judgment.court}</h2>}
+              {judgment.date && <p className="text-center text-gray-600 mb-2">[ {formatDate(judgment.date)} ]</p>}
               {judgment.judge && (
                 <p className="text-center text-gray-700 mb-6">
                   כבוד השופט/ת <span className="font-semibold">{judgment.judge}</span>
@@ -330,9 +332,11 @@ export default async function JudgmentPage({ params }: PageProps) {
               )}
 
               {/* Parties summary at bottom */}
-              <div className="mt-8 pt-6 border-t border-gray-200 text-sm text-gray-700">
-                <p><strong>הצדדים במסמך זה:</strong> {[judgment.plaintiff, judgment.defendant].filter(Boolean).join(', ') || '-'}</p>
-              </div>
+              {(judgment.plaintiff || judgment.defendant) && (
+                <div className="mt-8 pt-6 border-t border-gray-200 text-sm text-gray-700">
+                  <p><strong>הצדדים במסמך זה:</strong> {[judgment.plaintiff, judgment.defendant].filter(Boolean).join(', ')}</p>
+                </div>
+              )}
             </div>
 
             {/* Action buttons - bottom */}
