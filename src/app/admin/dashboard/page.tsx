@@ -61,6 +61,7 @@ export default function AdminDashboardPage() {
   });
   const [importHistory, setImportHistory] = useState<ImportRecord[]>([]);
   const [importing, setImporting] = useState(false);
+  const [aiScanning, setAiScanning] = useState(false);
   const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'sources' | 'history'>('overview');
 
@@ -139,6 +140,41 @@ export default function AdminDashboardPage() {
       Swal.fire({ icon: 'error', title: 'שגיאה', text: 'שגיאה בייבוא', confirmButtonColor: '#B83232' });
     }
     setImporting(false);
+  }
+
+  async function triggerAiScan() {
+    setAiScanning(true);
+    try {
+      const Swal = (await import('sweetalert2')).default;
+      const res = await fetch('/api/admin/ai-scan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ limit: 20, onlyMissing: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        Swal.fire({
+          icon: 'success',
+          title: 'סריקת AI הושלמה!',
+          html: `<div style="text-align:right;direction:rtl">
+            <p><b>${data.scanned || 0}</b> פסקי דין נסרקו</p>
+            <p><b>${data.updated || 0}</b> עודכנו עם נתונים חדשים</p>
+            <p><b>${data.failed || 0}</b> נכשלו</p>
+          </div>`,
+          confirmButtonColor: '#0B3C5D',
+        });
+        fetchAll();
+      } else {
+        Swal.fire({ icon: 'error', title: 'שגיאה', text: data.error, confirmButtonColor: '#B83232' });
+      }
+    } catch {
+      const Swal = (await import('sweetalert2')).default;
+      Swal.fire({ icon: 'error', title: 'שגיאה', text: 'שגיאה בסריקת AI', confirmButtonColor: '#B83232' });
+    }
+    setAiScanning(false);
   }
 
   if (loading) {
@@ -436,6 +472,13 @@ export default function AdminDashboardPage() {
           </a>
           <button onClick={triggerImport} disabled={importing} className="px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-primary-light transition disabled:opacity-50">
             {importing ? 'מייבא...' : 'ייבוא מכל המקורות'}
+          </button>
+          <button onClick={triggerAiScan} disabled={aiScanning} className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition disabled:opacity-50 flex items-center gap-2">
+            {aiScanning ? (
+              <><RefreshCw className="w-4 h-4 animate-spin" /> סורק עם AI...</>
+            ) : (
+              <>&#x2728; סריקת AI - Gemini</>
+            )}
           </button>
         </div>
       </div>

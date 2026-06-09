@@ -7,6 +7,7 @@
 import { runAllScrapers } from './scrapers';
 import { addJudgments } from './judgment-store';
 import { prisma } from './db';
+import { analyzeJudgment, mergeAnalysis } from './gemini';
 
 export interface ImportRecord {
   id: string;
@@ -154,6 +155,50 @@ export async function runDailyImport(): Promise<ImportRecord> {
   mainRecord.status = mainRecord.errors.length > 0
     ? (mainRecord.count > 0 ? 'partial' : 'failed')
     : 'success';
+
+  // AI scan: analyze newly imported judgments with missing metadata
+  try {
+    const needsScan = await prisma.judgment.findMany({
+      where: {
+        fullText: { not: null },
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        OR: [
+          { judge: null }, { judge: '' },
+          { plaintiff: null }, { plaintiff: '' },
+          { defendant: null }, { defendant: '' },
+        ],
+      },
+      take: 30,
+    });
+
+    let aiUpdated = 0;
+    for (const j of needsScan) {
+      if (!j.fullText) continue;
+      try {
+        const analysis = await analyzeJudgment(j.fullText, {
+          caseNumber: j.caseNumber,
+          courtName: j.courtName,
+        });
+        if (!analysis) continue;
+
+        const updates = mergeAnalysis(
+          { judge: j.judge || '', plaintiff: j.plaintiff || '', defendant: j.defendant || '', procedureType: j.procedureType || '', category: j.category || '', summary: j.summary || '', courtName: j.courtName || '' },
+          analysis,
+        );
+
+        if (Object.keys(updates).length > 0) {
+          await prisma.judgment.update({ where: { id: j.id }, data: updates });
+          aiUpdated++;
+        }
+        await new Promise((r) => setTimeout(r, 500));
+      } catch { /* continue on error */ }
+    }
+    if (aiUpdated > 0) {
+      console.log(`[daily-import] AI enriched ${aiUpdated} judgments`);
+    }
+  } catch (e) {
+    console.error('[daily-import] AI scan error:', e);
+  }
 
   // Save main combined log to DB
   try {
