@@ -1,8 +1,61 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import type { StoredJudgment } from "@/lib/judgment-store";
 
 export const dynamic = "force-dynamic";
+
+const SITE_URL = "https://mishpatly.co.il";
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; court?: string; judge?: string; category?: string }>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const q = params.q;
+  const court = params.court;
+  const judge = params.judge;
+  const category = params.category;
+
+  if (q) {
+    return {
+      title: `פסקי דין עבור "${q}" | חיפוש במאגר משפטלי`,
+      description: `תוצאות חיפוש פסקי דין עבור "${q}" במאגר משפטלי. חיפוש פסקי דין לפי שם, מספר תיק, שופט או נושא מכל בתי המשפט בישראל.`,
+      alternates: { canonical: `${SITE_URL}/search?q=${encodeURIComponent(q)}` },
+      robots: { index: true, follow: true },
+    };
+  }
+  if (judge) {
+    return {
+      title: `פסקי דין של השופט/ת ${judge} | משפטלי`,
+      description: `כל פסקי הדין וההחלטות המשפטיות של השופט/ת ${judge}. צפו במאגר פסקי דין מקיף לפי שופט/ת מכל בתי המשפט בישראל.`,
+      alternates: { canonical: `${SITE_URL}/search?judge=${encodeURIComponent(judge)}` },
+      robots: { index: true, follow: true },
+    };
+  }
+  if (court) {
+    return {
+      title: `פסקי דין - ${court} | משפטלי`,
+      description: `פסקי דין והחלטות משפטיות מ${court}. צפו במאגר פסקי דין מקיף מבית המשפט.`,
+      alternates: { canonical: `${SITE_URL}/search?court=${encodeURIComponent(court)}` },
+      robots: { index: true, follow: true },
+    };
+  }
+  if (category) {
+    return {
+      title: `פסקי דין בתחום ${category} | משפטלי`,
+      description: `פסקי דין בתחום ${category} מכל בתי המשפט בישראל. מאגר פסיקה מקיף ועדכני.`,
+      alternates: { canonical: `${SITE_URL}/search?category=${encodeURIComponent(category)}` },
+      robots: { index: true, follow: true },
+    };
+  }
+  return {
+    title: "חיפוש פסקי דין | מאגר פסקי דין משפטלי",
+    description: "חיפוש פסקי דין מכל בתי המשפט בישראל. חיפוש לפי שם, מספר תיק, שופט, בית משפט או תחום משפטי. מאגר פסיקה מקיף ועדכני עם עדכון יומי.",
+    alternates: { canonical: `${SITE_URL}/search` },
+  };
+}
 
 const ITEMS_PER_PAGE = 10;
 
@@ -148,7 +201,11 @@ export default async function SearchPage({
           </nav>
 
           <h1 className="text-2xl font-bold text-primary mb-4">
-            {isAdvanced ? "חיפוש מתקדם" : "פסקי דין"}
+            {judgeFilter ? `פסקי דין של השופט/ת ${judgeFilter}` :
+             courtFilter ? `פסקי דין - ${courtFilter}` :
+             categoryFilter ? `פסקי דין בתחום ${categoryFilter}` :
+             query ? `תוצאות חיפוש: "${query}"` :
+             isAdvanced ? "חיפוש מתקדם" : "פסקי דין"}
           </h1>
 
           <form
@@ -460,6 +517,33 @@ export default async function SearchPage({
               </nav>
             )}
           </section>
+        </div>
+
+        {/* SEO Internal Linking Block */}
+        <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6">
+          <h2 className="text-lg font-bold text-primary mb-4">חיפוש פסקי דין לפי נושא</h2>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {['אזרחי', 'פלילי', 'עבודה', 'מנהלי', 'משפחה', 'נזיקין', 'חוזים', 'מקרקעין'].map((cat) => (
+              <Link key={cat} href={`/search?category=${cat}`} className="rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-accent/10 hover:text-accent transition-colors">
+                פסקי דין {cat}
+              </Link>
+            ))}
+          </div>
+          <h3 className="text-sm font-bold text-primary mb-2">קישורים מהירים</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+            <Link href="/search/piskei-din" className="text-gray-600 hover:text-accent">פסקי דין</Link>
+            <Link href="/search/magar-piskei-din" className="text-gray-600 hover:text-accent">מאגר פסקי דין</Link>
+            <Link href="/search/hipus-piskei-din" className="text-gray-600 hover:text-accent">חיפוש פסקי דין</Link>
+            <Link href="/search/hasarat-azkurim" className="text-gray-600 hover:text-accent">הסרת אזכורים</Link>
+            <Link href="/search/piskei-din-peliliyim" className="text-gray-600 hover:text-accent">פסקי דין פליליים</Link>
+            <Link href="/search/piskei-din-dinei-avoda" className="text-gray-600 hover:text-accent">פסקי דין דיני עבודה</Link>
+            <Link href="/lawyers" className="text-gray-600 hover:text-accent">פורטל עורכי דין</Link>
+            <Link href="/articles" className="text-gray-600 hover:text-accent">מאמרים משפטיים</Link>
+            <Link href="/removal-request" className="text-gray-600 hover:text-accent">הסרת אזכור משפטי</Link>
+          </div>
+          <p className="mt-4 text-xs text-gray-500 leading-relaxed">
+            משפטלי מציע מאגר פסקי דין מקיף הכולל מעל 83,000 פסקי דין מכל בתי המשפט בישראל. חפשו פסקי דין לפי שם נתבע, שם תובע, שם שופט, מספר תיק או מילות מפתח. המאגר מתעדכן באופן יומי אוטומטי מ-7 מקורות מידע שונים.
+          </p>
         </div>
       </div>
     </div>

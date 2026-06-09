@@ -21,6 +21,15 @@ export interface StoredJudgment {
   parties: string;
   summary: string;
   fullText: string;
+  aiAnalysis?: string;
+  legalTopics?: string[];
+  keyFindings?: string;
+  partiesArgs?: string;
+  courtReasoning?: string;
+  verdict?: string;
+  decisionType?: string;
+  relatedCases?: string[];
+  aiEnrichedAt?: string;
   sourceUrl: string;
   pdfUrl: string;
   sourceName: string;
@@ -46,6 +55,15 @@ function dbToStored(j: Judgment): StoredJudgment {
     parties: j.parties || '',
     summary: j.summary || '',
     fullText: j.fullText || '',
+    aiAnalysis: j.aiAnalysis || '',
+    legalTopics: j.legalTopics || [],
+    keyFindings: j.keyFindings || '',
+    partiesArgs: j.partiesArgs || '',
+    courtReasoning: j.courtReasoning || '',
+    verdict: j.verdict || '',
+    decisionType: j.decisionType || '',
+    relatedCases: j.relatedCases || [],
+    aiEnrichedAt: j.aiEnrichedAt ? j.aiEnrichedAt.toISOString() : '',
     sourceUrl: j.sourceUrl || '',
     pdfUrl: j.pdfUrl || '',
     sourceName: j.sourceName || '',

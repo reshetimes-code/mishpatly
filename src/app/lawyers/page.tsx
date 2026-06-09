@@ -1,5 +1,23 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { searchLawyers, getAllLawyers, SPECIALIZATIONS, CITIES } from '@/lib/lawyer-store';
+
+const SITE_URL = 'https://mishpatly.co.il';
+
+export const metadata: Metadata = {
+  title: 'פורטל עורכי דין | מצאו עורך דין מתאים | משפטלי',
+  description: 'פורטל עורכי הדין של משפטלי - מצאו עורך דין מתאים לפי תחום התמחות, עיר ודירוג לקוחות. עורכי דין בתל אביב, ירושלים, חיפה, באר שבע ועוד. חוות דעת אמיתיות ופרטי התקשרות.',
+  keywords: ['עורכי דין', 'עורך דין', 'פורטל עורכי דין', 'חיפוש עורך דין', 'עורך דין תל אביב', 'עורך דין ירושלים', 'עורך דין חיפה', 'עורך דין פלילי', 'עורך דין משפחה', 'עורך דין נזיקין', 'עורך דין עבודה', 'משפטלי'],
+  alternates: { canonical: `${SITE_URL}/lawyers` },
+  openGraph: {
+    title: 'פורטל עורכי דין | משפטלי',
+    description: 'מצאו את עורך הדין המתאים לכם לפי תחום התמחות, אזור ודירוג לקוחות.',
+    type: 'website',
+    locale: 'he_IL',
+    siteName: 'משפטלי',
+    url: `${SITE_URL}/lawyers`,
+  },
+};
 
 function StarRating({ rating }: { rating: number }) {
   const stars = [];

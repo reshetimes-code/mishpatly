@@ -7,7 +7,7 @@
 import { runAllScrapers } from './scrapers';
 import { addJudgments } from './judgment-store';
 import { prisma } from './db';
-import { analyzeJudgment, mergeAnalysis } from './gemini';
+import { generateComprehensiveAnalysis, mergeComprehensiveAnalysis } from './gemini';
 
 export interface ImportRecord {
   id: string;
@@ -156,33 +156,44 @@ export async function runDailyImport(): Promise<ImportRecord> {
     ? (mainRecord.count > 0 ? 'partial' : 'failed')
     : 'success';
 
-  // AI scan: analyze newly imported judgments with missing metadata
+  // AI comprehensive scan: enrich newly imported judgments with full analysis
   try {
     const needsScan = await prisma.judgment.findMany({
       where: {
-        fullText: { not: null },
         createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-        OR: [
-          { judge: null }, { judge: '' },
-          { plaintiff: null }, { plaintiff: '' },
-          { defendant: null }, { defendant: '' },
-        ],
+        aiEnrichedAt: null,
       },
       take: 30,
     });
 
     let aiUpdated = 0;
     for (const j of needsScan) {
-      if (!j.fullText) continue;
       try {
-        const analysis = await analyzeJudgment(j.fullText, {
-          caseNumber: j.caseNumber,
-          courtName: j.courtName,
-        });
+        const analysis = await generateComprehensiveAnalysis(
+          j.fullText || '',
+          {
+            caseNumber: j.caseNumber,
+            courtName: j.courtName,
+            judge: j.judge || undefined,
+            plaintiff: j.plaintiff || undefined,
+            defendant: j.defendant || undefined,
+            summary: j.summary || undefined,
+            procedureType: j.procedureType || undefined,
+            category: j.category || undefined,
+            title: j.title,
+          }
+        );
         if (!analysis) continue;
 
-        const updates = mergeAnalysis(
-          { judge: j.judge || '', plaintiff: j.plaintiff || '', defendant: j.defendant || '', procedureType: j.procedureType || '', category: j.category || '', summary: j.summary || '', courtName: j.courtName || '' },
+        const updates = mergeComprehensiveAnalysis(
+          {
+            judge: j.judge || '', plaintiff: j.plaintiff || '', defendant: j.defendant || '',
+            procedureType: j.procedureType || '', category: j.category || '',
+            summary: j.summary || '', courtName: j.courtName || '',
+            aiAnalysis: j.aiAnalysis || '', keyFindings: j.keyFindings || '',
+            partiesArgs: j.partiesArgs || '', courtReasoning: j.courtReasoning || '',
+            verdict: j.verdict || '', decisionType: j.decisionType || '',
+          },
           analysis,
         );
 
@@ -194,7 +205,7 @@ export async function runDailyImport(): Promise<ImportRecord> {
       } catch { /* continue on error */ }
     }
     if (aiUpdated > 0) {
-      console.log(`[daily-import] AI enriched ${aiUpdated} judgments`);
+      console.log(`[daily-import] AI enriched ${aiUpdated} judgments with comprehensive analysis`);
     }
   } catch (e) {
     console.error('[daily-import] AI scan error:', e);

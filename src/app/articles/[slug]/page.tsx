@@ -334,14 +334,30 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+const SITE_URL = 'https://mishpatly.co.il';
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const article = articles[slug];
   if (!article) return { title: 'מאמר לא נמצא | משפטלי' };
   return {
-    title: `${article.title} | משפטלי`,
+    title: `${article.title} | מאמרים משפטיים | משפטלי`,
     description: article.excerpt,
-    openGraph: { title: article.title, description: article.excerpt, type: 'article' },
+    keywords: [article.category, article.title, 'מאמר משפטי', 'משפטלי', 'ייעוץ משפטי', 'דיני ' + article.category],
+    alternates: { canonical: `${SITE_URL}/articles/${slug}` },
+    openGraph: {
+      title: article.title,
+      description: article.excerpt,
+      type: 'article',
+      locale: 'he_IL',
+      siteName: 'משפטלי',
+      url: `${SITE_URL}/articles/${slug}`,
+      publishedTime: article.date,
+      authors: [article.author],
+      section: article.category,
+    },
+    twitter: { card: 'summary', title: article.title, description: article.excerpt },
+    robots: { index: true, follow: true },
   };
 }
 
@@ -365,7 +381,42 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   const otherArticles = Object.values(articles).filter(a => a.slug !== slug).slice(0, 3);
 
+  // JSON-LD structured data for article
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Article",
+        "headline": article.title,
+        "description": article.excerpt,
+        "datePublished": article.date,
+        "dateModified": article.date,
+        "author": { "@type": "Person", "name": article.author },
+        "publisher": {
+          "@type": "Organization",
+          "name": "משפטלי",
+          "url": SITE_URL,
+          "logo": { "@type": "ImageObject", "url": `${SITE_URL}/logo.png` },
+        },
+        "mainEntityOfPage": `${SITE_URL}/articles/${slug}`,
+        "inLanguage": "he",
+        "articleSection": article.category,
+        "about": { "@type": "Thing", "name": article.category },
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "דף הבית", "item": SITE_URL },
+          { "@type": "ListItem", "position": 2, "name": "מאמרים משפטיים", "item": `${SITE_URL}/articles` },
+          { "@type": "ListItem", "position": 3, "name": article.title, "item": `${SITE_URL}/articles/${slug}` },
+        ],
+      },
+    ],
+  };
+
   return (
+    <>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     <div className="min-h-screen bg-legal-bg">
       {/* Breadcrumbs */}
       <nav className="bg-white border-b">
@@ -432,5 +483,6 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         </div>
       </div>
     </div>
+    </>
   );
 }

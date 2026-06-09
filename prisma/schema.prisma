@@ -40,6 +40,15 @@ model Judgment {
   parties         String?
   summary         String?         @db.Text
   fullText        String?         @map("full_text") @db.Text
+  aiAnalysis      String?         @map("ai_analysis") @db.Text
+  legalTopics     String[]        @map("legal_topics")
+  keyFindings     String?         @map("key_findings") @db.Text
+  partiesArgs     String?         @map("parties_args") @db.Text
+  courtReasoning  String?         @map("court_reasoning") @db.Text
+  verdict         String?         @db.Text
+  decisionType    String?         @map("decision_type")
+  relatedCases    String[]        @map("related_cases")
+  aiEnrichedAt    DateTime?       @map("ai_enriched_at")
   sourceUrl       String?         @map("source_url")
   pdfUrl          String?         @map("pdf_url")
   sourceName      String?         @map("source_name")

@@ -1,7 +1,63 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 import { getLawyerBySlug, getReviewsByLawyerId } from '@/lib/lawyer-store';
 import ReviewSection from './ReviewSection';
+
+const SITE_URL = 'https://mishpatly.co.il';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug: rawSlug } = await params;
+  const slug = decodeURIComponent(rawSlug);
+  if (slug === 'login' || slug === 'register') return {};
+  const lawyer = await getLawyerBySlug(slug);
+  if (!lawyer) return { title: 'עורך דין לא נמצא | משפטלי' };
+
+  const specs = lawyer.specializations.join(', ');
+  const title = `עו"ד ${lawyer.fullName} - ${specs || 'עורך דין'} | ${lawyer.city} | משפטלי`;
+  const description = `עו"ד ${lawyer.fullName} - עורך דין ${specs ? `המתמחה ב${specs}` : ''} ב${lawyer.city}. ${lawyer.yearsExperience > 0 ? `${lawyer.yearsExperience} שנות ניסיון. ` : ''}דירוג ${lawyer.rating}/5 (${lawyer.reviewCount} המלצות). צפו בפרופיל המלא, חוות דעת לקוחות ופרטי התקשרות.`;
+
+  return {
+    title,
+    description,
+    keywords: [
+      lawyer.fullName,
+      `עורך דין ${lawyer.city}`,
+      ...lawyer.specializations.map(s => `עורך דין ${s}`),
+      ...lawyer.specializations,
+      `עו"ד ${lawyer.fullName}`,
+      'עורך דין',
+      'עורכי דין',
+      'משפטלי',
+      lawyer.city,
+      lawyer.courtDistrict || '',
+    ].filter(Boolean),
+    alternates: {
+      canonical: `${SITE_URL}/lawyers/${slug}`,
+    },
+    openGraph: {
+      title: `עו"ד ${lawyer.fullName} - ${specs || 'עורך דין'} | ${lawyer.city}`,
+      description,
+      type: 'profile',
+      locale: 'he_IL',
+      siteName: 'משפטלי',
+      url: `${SITE_URL}/lawyers/${slug}`,
+      images: lawyer.profileImage
+        ? [{ url: lawyer.profileImage, alt: `עו"ד ${lawyer.fullName}` }]
+        : [{ url: `${SITE_URL}/logo.png`, width: 200, height: 200, alt: 'משפטלי' }],
+    },
+    twitter: {
+      card: 'summary',
+      title: `עו"ד ${lawyer.fullName} | משפטלי`,
+      description,
+    },
+    robots: { index: true, follow: true },
+  };
+}
 
 function StarRating({ rating, size = 'text-lg' }: { rating: number; size?: string }) {
   return (
@@ -34,7 +90,71 @@ export default async function LawyerProfilePage({
 
   const reviews = await getReviewsByLawyerId(lawyer.id);
 
+  // JSON-LD structured data for lawyer profile
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "LegalService",
+        "@id": `${SITE_URL}/lawyers/${slug}#business`,
+        "name": `עו"ד ${lawyer.fullName}`,
+        "description": lawyer.bio || `עורך דין ${lawyer.specializations.join(', ')} ב${lawyer.city}`,
+        "url": `${SITE_URL}/lawyers/${slug}`,
+        "telephone": lawyer.phone || undefined,
+        "email": lawyer.email || undefined,
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": lawyer.city,
+          "streetAddress": lawyer.address || undefined,
+          "addressCountry": "IL",
+        },
+        "areaServed": { "@type": "Country", "name": "Israel" },
+        "priceRange": "$$",
+        ...(lawyer.rating > 0 && {
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": lawyer.rating,
+            "reviewCount": lawyer.reviewCount,
+            "bestRating": 5,
+            "worstRating": 1,
+          },
+        }),
+        "image": lawyer.profileImage || `${SITE_URL}/logo.png`,
+        "isPartOf": { "@type": "WebSite", "name": "משפטלי", "url": SITE_URL },
+      },
+      {
+        "@type": "Person",
+        "name": lawyer.fullName,
+        "jobTitle": "עורך דין",
+        "knowsAbout": lawyer.specializations,
+        "worksFor": { "@id": `${SITE_URL}/lawyers/${slug}#business` },
+        ...(lawyer.profileImage && { "image": lawyer.profileImage }),
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "דף הבית", "item": SITE_URL },
+          { "@type": "ListItem", "position": 2, "name": "פורטל עורכי דין", "item": `${SITE_URL}/lawyers` },
+          { "@type": "ListItem", "position": 3, "name": lawyer.fullName, "item": `${SITE_URL}/lawyers/${slug}` },
+        ],
+      },
+      // Individual review schema for approved reviews
+      ...(reviews.length > 0
+        ? reviews.slice(0, 5).map((r) => ({
+            "@type": "Review",
+            "author": { "@type": "Person", "name": r.reviewerName },
+            "reviewRating": { "@type": "Rating", "ratingValue": r.rating, "bestRating": 5 },
+            "reviewBody": r.text,
+            "datePublished": r.createdAt.toISOString().split('T')[0],
+            "itemReviewed": { "@id": `${SITE_URL}/lawyers/${slug}#business` },
+          }))
+        : []),
+    ],
+  };
+
   return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     <div dir="rtl" className="min-h-screen bg-legal-bg text-legal-text">
       {/* Breadcrumbs */}
       <div className="bg-white border-b border-gray-200">
@@ -226,5 +346,6 @@ export default async function LawyerProfilePage({
         </div>
       </div>
     </div>
+    </>
   );
 }

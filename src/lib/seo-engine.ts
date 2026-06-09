@@ -122,16 +122,52 @@ export async function submitUrlsViaIndexNow(urls: string[]): Promise<number> {
 }
 
 // ============================================================
-// 3. Submit new judgment pages for indexing
+// 3. Submit new pages for indexing (judgments + lawyers + articles + keyword pages)
 // ============================================================
 export async function submitNewJudgmentsForIndexing(): Promise<{ total: number; newlySubmitted: number; pingResults: { google: boolean; bing: boolean; yandex: boolean } }> {
   const allJudgments = await getAllJudgmentsFromDB();
   const submitted = globalSeo.__seoSubmitted!;
 
   const newUrls: string[] = [];
+
+  // Submit judgment pages
   for (const j of allJudgments) {
     if (j.status !== 'PUBLISHED') continue;
     const url = `${SITE_URL}/judgment/${encodeURIComponent(j.slug)}`;
+    if (!submitted.has(url)) {
+      newUrls.push(url);
+      submitted.add(url);
+    }
+  }
+
+  // Submit lawyer profile pages
+  try {
+    const { prisma } = await import('./db');
+    const lawyers = await prisma.lawyer.findMany({
+      where: { isActive: true },
+      select: { slug: true },
+    });
+    for (const l of lawyers) {
+      const url = `${SITE_URL}/lawyers/${encodeURIComponent(l.slug)}`;
+      if (!submitted.has(url)) {
+        newUrls.push(url);
+        submitted.add(url);
+      }
+    }
+  } catch {
+    // DB unavailable
+  }
+
+  // Submit static important pages that might not be indexed yet
+  const importantPages = [
+    `${SITE_URL}`,
+    `${SITE_URL}/search`,
+    `${SITE_URL}/lawyers`,
+    `${SITE_URL}/articles`,
+    `${SITE_URL}/removal-request`,
+    `${SITE_URL}/contact`,
+  ];
+  for (const url of importantPages) {
     if (!submitted.has(url)) {
       newUrls.push(url);
       submitted.add(url);
