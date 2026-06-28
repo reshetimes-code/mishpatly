@@ -1,11 +1,22 @@
 import Link from 'next/link';
 import { Calendar, User, ArrowLeft } from 'lucide-react';
 import type { Metadata } from 'next';
+import { prisma } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'מאמרים משפטיים | משפטלי',
   description:
     'מאמרים משפטיים מקצועיים בנושאי משפט פלילי, אזרחי, מסחרי ועוד. מידע משפטי עדכני ומקיף.',
+  alternates: {
+    canonical: 'https://mishpatly.co.il/articles',
+  },
+  openGraph: {
+    title: 'מאמרים משפטיים | משפטלי',
+    description: 'מאמרים משפטיים מקצועיים בנושאי משפט פלילי, אזרחי, מסחרי ועוד.',
+    url: 'https://mishpatly.co.il/articles',
+  },
 };
 
 interface Article {
@@ -18,7 +29,8 @@ interface Article {
   category: string;
 }
 
-const articles: Article[] = [
+// Original static articles (kept for backwards compatibility)
+const staticArticles: Article[] = [
   {
     id: '1',
     title: 'זכויות הנאשם בהליך פלילי',
@@ -221,6 +233,34 @@ const articles: Article[] = [
   },
 ];
 
+async function getAllArticles(): Promise<Article[]> {
+  // Fetch DB articles
+  let dbArticles: Article[] = [];
+  try {
+    const rows = await prisma.article.findMany({
+      where: { isPublished: true },
+      orderBy: { publishedAt: 'desc' },
+      select: { id: true, title: true, excerpt: true, author: true, publishedAt: true, slug: true, category: true },
+    });
+    dbArticles = rows.map(r => ({
+      id: String(r.id),
+      title: r.title,
+      excerpt: r.excerpt,
+      author: r.author,
+      date: r.publishedAt.toISOString().split('T')[0],
+      slug: r.slug,
+      category: r.category,
+    }));
+  } catch {
+    // DB unavailable — fall back to static only
+  }
+
+  // Merge: DB articles first (newest), then static ones
+  const dbSlugs = new Set(dbArticles.map(a => a.slug));
+  const uniqueStatic = staticArticles.filter(a => !dbSlugs.has(a.slug));
+  return [...dbArticles, ...uniqueStatic];
+}
+
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   return date.toLocaleDateString('he-IL', {
@@ -230,7 +270,8 @@ function formatDate(dateStr: string): string {
   });
 }
 
-export default function ArticlesPage() {
+export default async function ArticlesPage() {
+  const articles = await getAllArticles();
   return (
     <div dir="rtl" className="min-h-screen bg-[#F4F6F8]">
       {/* Breadcrumbs */}

@@ -6,7 +6,6 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AccessibilityWidget from "@/components/AccessibilityWidget";
 import TopLoader from "@/components/TopLoader";
-import { ensureHydrated } from "@/lib/judgment-store";
 
 const heebo = Heebo({
   subsets: ["hebrew", "latin"],
@@ -17,14 +16,16 @@ const heebo = Heebo({
 export const metadata: Metadata = {
   metadataBase: new URL("https://mishpatly.co.il"),
   title: {
-    default: "משפטלי - מאגר פסקי דין והחלטות משפטיות | משפט לי | חיפוש פסקי דין",
-    template: "%s | משפטלי - משפט לי",
+    default: "משפט לי - משפטלי | מאגר פסקי דין וחיפוש לפי שם | חיפוש פסקי דין חינם",
+    template: "%s | משפט לי - משפטלי | מאגר פסקי דין",
   },
   description:
-    "משפטלי (משפט לי) - מאגר פסקי דין מקיף לחיפוש לפי שם אדם, חברה או מספר תיק. פסקי דין פליליים, אזרחיים, עבודה, משפחה ומנהליים מכל בתי המשפט בישראל. הסרת אזכורים משפטיים מגוגל. חיפוש חינמי במאגר פסיקה עדכני.",
+    "משפטלי - משפט לי - מאגר פסקי דין מהרשות השופטת. חיפוש פסקי דין לפי שם אדם, חברה או מספר תיק מכל בתי המשפט בישראל - פלילי, אזרחי, עבודה, משפחה ומנהלי. הסרת אזכורים משפטיים. חיפוש חינמי.",
   keywords: [
     "משפטלי",
     "משפט לי",
+    "משפטלי משפט לי",
+    "משפטלי מאגר פסקי דין",
     "mishpatly",
     "פסקי דין",
     "מאגר פסקי דין",
@@ -82,18 +83,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "he_IL",
-    url: "https://mishpatly.co.il",
-    siteName: "משפטלי - משפט לי",
-    title: "משפטלי - מאגר פסקי דין והחלטות משפטיות | משפט לי",
-    description:
-      "משפטלי (משפט לי) - מאגר פסקי דין מקיף לחיפוש לפי שם. פסקי דין פליליים, אזרחיים ועוד מכל בתי המשפט בישראל.",
-    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "משפטלי - משפט לי - מאגר פסקי דין" }],
+    siteName: "משפט לי - משפטלי",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "משפט לי - משפטלי - מאגר פסקי דין" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "משפטלי - משפט לי | מאגר פסקי דין",
+    title: "משפטלי - משפט לי | מאגר פסקי דין - חיפוש לפי שם",
     description:
-      "חיפוש פסקי דין לפי שם מכל בתי המשפט בישראל. משפט פלילי, אזרחי, עבודה. הסרת אזכורים.",
+      "משפטלי (משפט לי) - חיפוש פסקי דין לפי שם מכל בתי המשפט בישראל. הסרת אזכורים משפטיים.",
   },
   robots: {
     index: true,
@@ -113,8 +110,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Auto-hydrate judgment store from scrapers if empty (after deploy/restart)
-  ensureHydrated();
+  // ensureHydrated removed - data comes only from GOV.IL daily import
   return (
     <html lang="he" dir="rtl" className={`${heebo.variable} antialiased`}>
       <body className="min-h-screen flex flex-col font-[var(--font-heebo)] bg-legal-bg text-legal-text">
@@ -123,24 +119,42 @@ export default function RootLayout({
           "@context": "https://schema.org",
           "@graph": [
             {
-              "@type": "Organization",
+              "@type": ["Organization", "LegalService"],
               "@id": "https://mishpatly.co.il/#organization",
-              "name": "משפטלי",
-              "alternateName": ["משפט לי", "Mishpatly", "mishpatly"],
+              "name": "משפט לי - משפטלי",
+              "alternateName": ["משפט לי", "משפטלי", "Mishpatly", "mishpatly", "משפטלי - מאגר פסקי דין", "mishpat li"],
               "url": "https://mishpatly.co.il",
-              "logo": "https://mishpatly.co.il/logo.png",
-              "description": "משפטלי - מאגר פסקי דין מקיף לחיפוש לפי שם אדם, חברה או מספר תיק מכל בתי המשפט בישראל",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://mishpatly.co.il/logo.png",
+                "width": 200,
+                "height": 200
+              },
+              "image": "https://mishpatly.co.il/logo.png",
+              "description": "משפטלי - המאגר המשפטי הגדול בישראל. חיפוש פסקי דין לפי שם אדם, חברה או מספר תיק מכל בתי המשפט. הסרת אזכורים משפטיים.",
+              "foundingDate": "2025",
+              "numberOfEmployees": { "@type": "QuantitativeValue", "value": "5" },
+              "knowsAbout": ["פסקי דין", "משפט ישראלי", "הסרת אזכורים", "מאגר פסיקה", "חיפוש משפטי"],
+              "slogan": "המאגר המשפטי הגדול בישראל",
               "contactPoint": {
                 "@type": "ContactPoint",
                 "telephone": "+972-50-722-9966",
                 "email": "telaviv2u@gmail.com",
                 "contactType": "customer service",
-                "availableLanguage": "Hebrew"
+                "availableLanguage": ["Hebrew", "English"]
               },
               "address": {
                 "@type": "PostalAddress",
-                "addressCountry": "IL",
-                "addressRegion": "ישראל"
+                "streetAddress": "דרך חיפה 19",
+                "addressLocality": "קרית אתא",
+                "addressRegion": "חיפה",
+                "postalCode": "2840000",
+                "addressCountry": "IL"
+              },
+              "geo": {
+                "@type": "GeoCoordinates",
+                "latitude": 32.8095,
+                "longitude": 35.1064
               },
               "areaServed": {
                 "@type": "Country",
@@ -150,6 +164,15 @@ export default function RootLayout({
                 "@type": "Country",
                 "name": "Israel"
               },
+              "hasOfferCatalog": {
+                "@type": "OfferCatalog",
+                "name": "שירותי משפטלי",
+                "itemListElement": [
+                  { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "חיפוש פסקי דין לפי שם", "description": "חיפוש חינמי במאגר פסקי דין מהרשות השופטת" } },
+                  { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "הסרת אזכורים משפטיים", "description": "שירות הסרת אזכורים ממנועי חיפוש" } },
+                  { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "פורטל עורכי דין", "description": "מאגר עורכי דין לפי התמחות ואזור" } }
+                ]
+              },
               "sameAs": [
                 "https://mishpatly.co.il"
               ]
@@ -157,8 +180,8 @@ export default function RootLayout({
             {
               "@type": "WebSite",
               "@id": "https://mishpatly.co.il/#website",
-              "name": "משפטלי - משפט לי",
-              "alternateName": "משפט לי",
+              "name": "משפט לי - משפטלי",
+              "alternateName": ["משפט לי", "משפטלי", "Mishpatly", "mishpat li", "משפטלי - מאגר פסקי דין"],
               "url": "https://mishpatly.co.il",
               "publisher": { "@id": "https://mishpatly.co.il/#organization" },
               "inLanguage": "he",
@@ -195,7 +218,7 @@ export default function RootLayout({
                   "name": "מה כולל מאגר פסקי הדין של משפטלי?",
                   "acceptedAnswer": {
                     "@type": "Answer",
-                    "text": "מאגר משפטלי כולל מעל 83,000 פסקי דין מ-7 מקורות מידע, כולל בית המשפט העליון, בתי המשפט המחוזיים, בתי משפט השלום, בתי הדין לעבודה ועוד. המאגר מתעדכן באופן יומי אוטומטי."
+                    "text": "מאגר משפטלי כולל פסקי דין מהרשות השופטת, כולל בית המשפט העליון, בתי המשפט המחוזיים, בתי משפט השלום, בתי הדין לעבודה ועוד. המאגר מתעדכן באופן יומי אוטומטי."
                   }
                 },
                 {

@@ -24,7 +24,10 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/admin/', '/api/'],
       },
     ],
-    sitemap: 'https://mishpatly.co.il/sitemap.xml',
+    sitemap: [
+      'https://mishpatly.co.il/sitemap.xml',
+      'https://mishpatly.co.il/sitemap-judgments',
+    ],
     host: 'https://mishpatly.co.il',
   };
 }

@@ -12,6 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
+  Download,
+  FileText,
 } from 'lucide-react';
 
 interface Judgment {
@@ -24,6 +26,14 @@ interface Judgment {
   slug?: string;
   sourceName?: string;
   category?: string;
+  pdfUrl?: string;
+  pdfPageCount?: number;
+  createdAt?: string;
+}
+
+interface MonthlyStats {
+  month: string;
+  count: number;
 }
 
 const emptyForm = {
@@ -50,6 +60,7 @@ export default function AdminJudgmentsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
+  const [minPagesFilter, setMinPagesFilter] = useState(0);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -57,6 +68,8 @@ export default function AdminJudgmentsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([]);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
@@ -70,6 +83,7 @@ export default function AdminJudgmentsPage() {
       if (search) params.set('q', search);
       if (statusFilter) params.set('status', statusFilter);
       if (sourceFilter) params.set('source', sourceFilter);
+      if (minPagesFilter > 0) params.set('minPages', String(minPagesFilter));
 
       const res = await fetch(`/api/judgments?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -84,11 +98,26 @@ export default function AdminJudgmentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter, sourceFilter, token]);
+  }, [page, search, statusFilter, sourceFilter, minPagesFilter, token]);
 
   useEffect(() => {
     fetchJudgments();
   }, [fetchJudgments]);
+
+  useEffect(() => {
+    async function fetchMonthly() {
+      try {
+        const res = await fetch('/api/admin/monthly-stats', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setMonthlyStats(data.months || []);
+        }
+      } catch { /* ignore */ }
+    }
+    fetchMonthly();
+  }, [token]);
 
   const statusBadge = (status: string) => {
     const map: Record<string, { bg: string; text: string; label: string }> = {
@@ -236,6 +265,16 @@ export default function AdminJudgmentsPage() {
 
   return (
     <div className="space-y-5">
+      {/* Full-screen download loader */}
+      {downloading && (
+        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-10 flex flex-col items-center gap-4 shadow-2xl">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-lg font-bold text-legal-text">מוריד מסמך...</p>
+            <p className="text-sm text-gray-500">אנא המתן, המסמך בהורדה מהשרת</p>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-legal-text">ניהול פסקי דין</h1>
         <button
@@ -277,15 +316,38 @@ export default function AdminJudgmentsPage() {
         >
           <option value="">כל המקורות</option>
           <option value="data.gov.il">data.gov.il</option>
-          <option value="נבו (Nevo)">נבו</option>
-          <option value="פסק דין (PsakDin)">פסק דין</option>
           <option value="הרשות השופטת (court.gov.il)">הרשות השופטת</option>
-          <option value="תקדין (Takdin)">תקדין</option>
-          <option value="דין אונליין (Din)">דין אונליין</option>
+          <option value="decisions.court.gov.il">decisions.court.gov.il</option>
           <option value="בית הדין הרבני">בית הדין הרבני</option>
         </select>
+        <button
+          onClick={() => { setMinPagesFilter(minPagesFilter > 0 ? 0 : 2); setPage(1); }}
+          className={`px-4 py-2.5 border rounded-lg text-sm font-medium whitespace-nowrap transition ${
+            minPagesFilter > 0
+              ? 'bg-primary text-white border-primary'
+              : 'border-gray-300 text-legal-text hover:bg-gray-50'
+          }`}
+        >
+          <FileText className="w-4 h-4 inline-block ml-1" />
+          2+ עמודים
+        </button>
         <span className="text-xs text-gray-400 whitespace-nowrap">{total} תוצאות</span>
       </div>
+
+      {/* Monthly Inventory */}
+      {monthlyStats.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-5">
+          <h2 className="font-bold text-legal-text mb-3 text-sm">מלאי פסקי דין - חודש אחרון</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+            {monthlyStats.map((m) => (
+              <div key={m.month} className="bg-gray-50 rounded-lg p-3 text-center">
+                <p className="text-xs text-gray-500 mb-1">{m.month}</p>
+                <p className="text-xl font-bold text-primary">{m.count}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       {loading ? (
@@ -310,6 +372,7 @@ export default function AdminJudgmentsPage() {
                   <th className="px-4 py-3 text-right font-medium">תאריך</th>
                   <th className="px-4 py-3 text-right font-medium">מקור</th>
                   <th className="px-4 py-3 text-right font-medium">קטגוריה</th>
+                  <th className="px-4 py-3 text-right font-medium">עמודים</th>
                   <th className="px-4 py-3 text-right font-medium">סטטוס</th>
                   <th className="px-4 py-3 text-right font-medium">פעולות</th>
                 </tr>
@@ -317,7 +380,7 @@ export default function AdminJudgmentsPage() {
               <tbody>
                 {judgments.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                    <td colSpan={10} className="px-4 py-8 text-center text-gray-400">
                       {total === 0 ? 'לא נמצאו פסקי דין. לחץ "ייבוא עכשיו" בלוח הבקרה כדי לייבא פסיקות.' : 'לא נמצאו תוצאות לחיפוש'}
                     </td>
                   </tr>
@@ -342,6 +405,16 @@ export default function AdminJudgmentsPage() {
                         <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary whitespace-nowrap">
                           {j.category || '-'}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {j.pdfPageCount ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700">
+                            <FileText className="w-3 h-3" />
+                            {j.pdfPageCount}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">{statusBadge(j.status)}</td>
                       <td className="px-4 py-3">
@@ -372,6 +445,34 @@ export default function AdminJudgmentsPage() {
                             ) : (
                               <EyeOff className="w-4 h-4 rotate-180" />
                             )}
+                          </button>
+                          <button
+                            disabled={downloading}
+                            onClick={async () => {
+                              setDownloading(true);
+                              try {
+                                const res = await fetch(`/api/judgments/${j.id}/preview?full=true`, {
+                                  headers: { Authorization: `Bearer ${token}` },
+                                });
+                                if (!res.ok) throw new Error('Failed');
+                                const blob = await res.blob();
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `psak-din-${j.caseNumber || j.id}.pdf`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                              } catch {
+                                const Swal = (await import('sweetalert2')).default;
+                                Swal.fire({ icon: 'error', title: 'שגיאה', text: 'הורדת המסמך נכשלה', confirmButtonColor: '#0B3C5D' });
+                              } finally {
+                                setDownloading(false);
+                              }
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            title="הורדת מסמך מלא (PDF)"
+                          >
+                            <Download className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(j.id)}

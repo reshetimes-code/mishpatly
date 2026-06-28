@@ -8,7 +8,7 @@ import nodemailer from 'nodemailer';
 // Or by the internal self-scheduler
 const CRON_SECRET = process.env.CRON_SECRET || 'mishpatli-cron-secret-2026';
 
-const REPORT_RECIPIENTS = ['reshetimes@gmail.com', 'haimeld@gmail.com'];
+const REPORT_RECIPIENTS = ['reshetimes@gmail.com', 'haimeld@gmail.com', 'orenshp77@gmail.com'];
 
 function createTransporter() {
   return nodemailer.createTransport({
@@ -29,6 +29,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Step 0: Check for court confidentiality orders (BEFORE importing new data)
+    let confidentialResult = { processed: 0, unpublished: 0 };
+    try {
+      const { checkConfidentialCases } = await import('@/lib/confidential-monitor');
+      confidentialResult = await checkConfidentialCases();
+      if (confidentialResult.unpublished > 0) {
+        console.log(`[cron] Confidential monitor: ${confidentialResult.unpublished} cases removed`);
+      }
+    } catch (e) {
+      console.error('[cron] Confidential monitor failed:', e);
+    }
+
     // Step 1: Import judgments from all sources
     const importResult = await runDailyImport();
 
@@ -69,6 +81,7 @@ export async function GET(request: NextRequest) {
           seo: {
             urlsSubmitted: seoResult.indexing.newlySubmitted,
             personNames: seoResult.personNames,
+            personPagesSubmitted: seoResult.personPagesSubmitted,
             pingGoogle: seoResult.indexing.pingResults.google,
             pingBing: seoResult.indexing.pingResults.bing,
           },
@@ -148,6 +161,7 @@ export async function GET(request: NextRequest) {
             <h2 style="color: #2d3748; margin-top: 0;">\u{1F50D} SEO</h2>
             <p>URLs נשלחו לאינדוקס: <strong>${seoResult.indexing.newlySubmitted}</strong></p>
             <p>שמות מאונדקסים: <strong>${seoResult.personNames}</strong></p>
+            <p>דפי שמות נשלחו לאינדוקס: <strong>${seoResult.personPagesSubmitted}</strong></p>
             <p>Google Ping: ${seoResult.indexing.pingResults.google ? '\u2705 הצלחה' : '\u274C נכשל'}</p>
             <p>Bing Ping: ${seoResult.indexing.pingResults.bing ? '\u2705 הצלחה' : '\u274C נכשל'}</p>
           </div>
@@ -208,6 +222,7 @@ export async function GET(request: NextRequest) {
       seo: {
         urlsSubmitted: seoResult.indexing.newlySubmitted,
         personNames: seoResult.personNames,
+        personPagesSubmitted: seoResult.personPagesSubmitted,
         pingGoogle: seoResult.indexing.pingResults.google,
         pingBing: seoResult.indexing.pingResults.bing,
       },

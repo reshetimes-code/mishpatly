@@ -47,11 +47,11 @@ export async function generateMetadata({
       siteName: 'משפטלי',
       url: `${SITE_URL}/lawyers/${slug}`,
       images: lawyer.profileImage
-        ? [{ url: lawyer.profileImage, alt: `עו"ד ${lawyer.fullName}` }]
-        : [{ url: `${SITE_URL}/logo.png`, width: 200, height: 200, alt: 'משפטלי' }],
+        ? [{ url: `${SITE_URL}/api/lawyers/${slug}/image`, alt: `עו"ד ${lawyer.fullName}` }]
+        : [{ url: `${SITE_URL}/opengraph-image`, width: 1200, height: 630, alt: 'משפטלי' }],
     },
     twitter: {
-      card: 'summary',
+      card: 'summary_large_image',
       title: `עו"ד ${lawyer.fullName} | משפטלי`,
       description,
     },
@@ -193,10 +193,10 @@ export default async function LawyerProfilePage({
                   <img
                     src={lawyer.profileImage}
                     alt={lawyer.fullName}
-                    className="w-24 h-24 rounded-full object-cover shrink-0 border-4 border-white shadow-lg -mt-14"
+                    className="w-24 h-24 rounded-full object-cover shrink-0 border-4 border-white shadow-lg"
                   />
                 ) : (
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-primary-light flex items-center justify-center text-white text-3xl font-bold shrink-0 border-4 border-white shadow-lg -mt-14">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-primary-light flex items-center justify-center text-white text-3xl font-bold shrink-0 border-4 border-white shadow-lg">
                     {lawyer.fullName.charAt(0)}
                   </div>
                 )}
@@ -207,7 +207,6 @@ export default async function LawyerProfilePage({
                       <span className="rounded-full bg-legal-green/10 px-2.5 py-0.5 text-xs font-semibold text-legal-green">&#10003; מאומת</span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-500 mb-2">רישיון מספר {lawyer.licenseNumber}</p>
                   <div className="flex items-center gap-2">
                     <StarRating rating={lawyer.rating} />
                     <span className="text-sm text-gray-500">({lawyer.reviewCount} המלצות)</span>
@@ -340,6 +339,22 @@ export default async function LawyerProfilePage({
                     אתר אינטרנט
                   </a>
                 )}
+              </div>
+
+              {/* Share on WhatsApp */}
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <a
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`עו"ד ${lawyer.fullName} - ${lawyer.specializations.join(', ')}\n${lawyer.city}\n\n${SITE_URL}/lawyers/${slug}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-lg bg-[#25D366]/10 p-3 text-sm font-medium text-[#25D366] transition-colors hover:bg-[#25D366]/20 w-full"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.146.562 4.158 1.547 5.898L.06 23.399a.5.5 0 00.611.617l5.584-1.44A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.932 0-3.778-.53-5.382-1.527l-.385-.234-3.335.86.894-3.264-.256-.404A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" />
+                  </svg>
+                  שתפו את הכרטיס
+                </a>
               </div>
             </div>
           </div>

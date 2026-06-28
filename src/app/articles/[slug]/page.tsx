@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { Calendar, User, ArrowRight } from 'lucide-react';
 import type { Metadata } from 'next';
+import { prisma } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
 
 interface Article {
   title: string;
@@ -336,9 +339,69 @@ function formatDate(dateStr: string): string {
 
 const SITE_URL = 'https://mishpatly.co.il';
 
+async function getArticle(slug: string): Promise<Article | null> {
+  // Check static articles first
+  if (articles[slug]) return articles[slug];
+
+  // Then check DB
+  try {
+    const row = await prisma.article.findUnique({
+      where: { slug, isPublished: true },
+    });
+    if (!row) return null;
+    return {
+      title: row.title,
+      excerpt: row.excerpt,
+      author: row.author,
+      date: row.publishedAt.toISOString().split('T')[0],
+      slug: row.slug,
+      category: row.category,
+      content: row.content,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function getRelatedArticles(currentSlug: string, category: string): Promise<Article[]> {
+  // Mix of DB + static articles, excluding current
+  const related: Article[] = [];
+
+  try {
+    const dbRows = await prisma.article.findMany({
+      where: { isPublished: true, slug: { not: currentSlug } },
+      orderBy: [{ category: 'asc' }, { publishedAt: 'desc' }],
+      take: 6,
+    });
+    for (const r of dbRows) {
+      related.push({
+        title: r.title, excerpt: r.excerpt, author: r.author,
+        date: r.publishedAt.toISOString().split('T')[0],
+        slug: r.slug, category: r.category, content: r.content,
+      });
+    }
+  } catch { /* DB unavailable */ }
+
+  // Add static articles
+  for (const a of Object.values(articles)) {
+    if (a.slug !== currentSlug && !related.find(r => r.slug === a.slug)) {
+      related.push(a);
+    }
+  }
+
+  // Sort: same category first, then others
+  related.sort((a, b) => {
+    if (a.category === category && b.category !== category) return -1;
+    if (b.category === category && a.category !== category) return 1;
+    return 0;
+  });
+
+  return related.slice(0, 3);
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const article = articles[slug];
+  const article = await getArticle(slug);
   if (!article) return { title: 'מאמר לא נמצא | משפטלי' };
   return {
     title: `${article.title} | מאמרים משפטיים | משפטלי`,
@@ -363,7 +426,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const article = articles[slug];
+  const article = await getArticle(slug);
 
   if (!article) {
     return (
@@ -379,7 +442,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
     );
   }
 
-  const otherArticles = Object.values(articles).filter(a => a.slug !== slug).slice(0, 3);
+  const otherArticles = await getRelatedArticles(slug, article.category);
 
   // JSON-LD structured data for article
   const jsonLd = {

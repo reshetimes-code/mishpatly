@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getLawyerById, updateLawyer } from '@/lib/lawyer-store';
+import { getLawyerById, getLawyerBySlug, updateLawyer } from '@/lib/lawyer-store';
 import { verifyToken } from '@/lib/auth';
 
-// GET /api/lawyers/[id] - get lawyer by id
+// GET /api/lawyers/[id] - get lawyer by id or slug
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const lawyer = await getLawyerById(parseInt(id, 10));
+  const lawyer = isNaN(Number(id))
+    ? await getLawyerBySlug(id)
+    : await getLawyerById(parseInt(id, 10));
   if (!lawyer) {
     return NextResponse.json({ error: 'עורך הדין לא נמצא' }, { status: 404 });
   }
-  return NextResponse.json({ lawyer });
+  return NextResponse.json(lawyer);
 }
 
 // PUT /api/lawyers/[id] - update lawyer
@@ -87,6 +89,34 @@ export async function PUT(
     const updated = await updateLawyer(lawyerId, updateData);
 
     return NextResponse.json({ success: true, lawyer: updated });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
+
+// DELETE /api/lawyers/[id] - permanently delete lawyer
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const lawyerId = parseInt(id, 10);
+
+  // Admin auth required
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return NextResponse.json({ error: 'לא מורשה' }, { status: 401 });
+  }
+  const user = verifyToken(authHeader.substring(7));
+  if (!user || user.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'נדרשת הרשאת מנהל' }, { status: 403 });
+  }
+
+  try {
+    const { prisma } = await import('@/lib/db');
+    await prisma.lawyerReview.deleteMany({ where: { lawyerId } });
+    await prisma.lawyer.delete({ where: { id: lawyerId } });
+    return NextResponse.json({ success: true });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

@@ -34,6 +34,10 @@ export interface StoredJudgment {
   pdfUrl: string;
   sourceName: string;
   category: string;
+  govFileId?: string;
+  govFolderDate?: string;
+  pdfPageCount?: number;
+  firstPageText?: string;
   status: 'PUBLISHED' | 'DRAFT' | 'HIDDEN' | 'PENDING_REVIEW';
   isIndexable: boolean;
   createdAt: string;
@@ -68,6 +72,10 @@ function dbToStored(j: Judgment): StoredJudgment {
     pdfUrl: j.pdfUrl || '',
     sourceName: j.sourceName || '',
     category: j.category || '',
+    govFileId: j.govFileId || '',
+    govFolderDate: j.govFolderDate || '',
+    pdfPageCount: j.pdfPageCount || undefined,
+    firstPageText: j.firstPageText || '',
     status: j.status as StoredJudgment['status'],
     isIndexable: j.isIndexable,
     createdAt: j.createdAt.toISOString(),
@@ -157,17 +165,65 @@ export async function addJudgment(data: Omit<StoredJudgment, 'id' | 'createdAt' 
   return dbToStored(judgment);
 }
 
-export async function addJudgments(items: Omit<StoredJudgment, 'id' | 'createdAt' | 'updatedAt' | 'isIndexable'>[]): Promise<{ added: number; updated: number }> {
+/**
+ * Validate that a judgment looks like real legal data, not scraped junk.
+ * Returns null if valid, or a rejection reason string.
+ */
+function validateJudgment(item: { caseNumber: string; title: string; courtName: string; summary?: string; fullText?: string }): string | null {
+  // Case number must be at least 3 chars and not look like a test ID
+  if (!item.caseNumber || item.caseNumber.length < 3) return 'missing/short caseNumber';
+  if (/^PD-\d+$/i.test(item.caseNumber)) return 'test case number (PD-*)';
+  if (/^אחרי \d+$/.test(item.caseNumber)) return 'test case number';
+
+  // Title must be at least 5 chars and not be navigation/promo text
+  if (!item.title || item.title.length < 5) return 'missing/short title';
+  const junkTitles = ['חיפוש עורך דין', 'עורכי דין לפי', 'רוצים לדעת', 'בוט משפטי', 'פשוט תשאלו'];
+  if (junkTitles.some(junk => item.title.includes(junk))) return 'junk title (website text)';
+
+  // Court name must be more specific than just "בית משפט"
+  if (item.courtName && /^בית משפט\s*\d*$/.test(item.courtName.trim())) return 'generic court name';
+
+  return null;
+}
+
+export async function addJudgments(items: (Omit<StoredJudgment, 'id' | 'createdAt' | 'updatedAt' | 'isIndexable'> & {
+  _govFileId?: string;
+  _govFolderDate?: string;
+  _pdfPageCount?: number;
+  _firstPageText?: string;
+})[]): Promise<{ added: number; updated: number }> {
   let added = 0;
   let updated = 0;
 
   for (const item of items) {
+    const rejectReason = validateJudgment(item);
+    if (rejectReason) {
+      console.warn(`[judgment-store] Rejected "${item.caseNumber}" - ${item.title}: ${rejectReason}`);
+      continue;
+    }
     try {
-      const existing = await prisma.judgment.findFirst({
-        where: { caseNumber: item.caseNumber, sourceName: item.sourceName },
-      });
+      // For GOV items, check by govFileId first
+      const govFileId = item._govFileId || item.govFileId;
+      const existing = govFileId
+        ? await prisma.judgment.findFirst({ where: { govFileId } })
+        : await prisma.judgment.findFirst({
+            where: { caseNumber: item.caseNumber, sourceName: item.sourceName },
+          });
+
+      const govData = {
+        govFileId: govFileId || null,
+        govFolderDate: item._govFolderDate || item.govFolderDate || null,
+        pdfPageCount: item._pdfPageCount || item.pdfPageCount || null,
+        firstPageText: item._firstPageText || item.firstPageText || null,
+      };
 
       if (existing) {
+        // Never overwrite HIDDEN status - court-ordered confidential cases must stay hidden
+        if ((existing.status as string) === 'HIDDEN') {
+          console.log(`[judgment-store] Skipping update for HIDDEN case ${item.caseNumber} (ID: ${existing.id})`);
+          continue;
+        }
+
         await prisma.judgment.update({
           where: { id: existing.id },
           data: {
@@ -185,6 +241,7 @@ export async function addJudgments(items: Omit<StoredJudgment, 'id' | 'createdAt
             pdfUrl: item.pdfUrl || null,
             category: item.category || null,
             status: item.status as JudgmentStatus,
+            ...govData,
           },
         });
         updated++;
@@ -215,6 +272,7 @@ export async function addJudgments(items: Omit<StoredJudgment, 'id' | 'createdAt
             category: item.category || null,
             status: item.status as JudgmentStatus,
             isIndexable: true,
+            ...govData,
           },
         });
         added++;
@@ -252,7 +310,10 @@ export async function getJudgmentByIdFromDB(id: number): Promise<StoredJudgment 
 
 export async function getJudgmentBySlugFromDB(slug: string): Promise<StoredJudgment | null> {
   const j = await prisma.judgment.findFirst({ where: { slug } });
-  return j ? dbToStored(j) : null;
+  if (!j) return null;
+  // Court-ordered confidential cases must not be displayed
+  if ((j.status as string) === 'HIDDEN') return null;
+  return dbToStored(j);
 }
 
 // Keep old sync versions for backward compat but they're unreliable
@@ -274,10 +335,11 @@ export async function searchJudgmentsFromDB(opts: {
   status?: string;
   source?: string;
   category?: string;
+  minPages?: number;
   page?: number;
   limit?: number;
 }): Promise<{ judgments: StoredJudgment[]; total: number; page: number; totalPages: number }> {
-  const { query = '', court = '', year = '', procedureType = '', status = '', source = '', category = '', page = 1, limit = 20 } = opts;
+  const { query = '', court = '', year = '', procedureType = '', status = '', source = '', category = '', minPages = 0, page = 1, limit = 20 } = opts;
 
   // Build Prisma where clause
   const where: Record<string, unknown> = {};
@@ -307,6 +369,10 @@ export async function searchJudgmentsFromDB(opts: {
       gte: new Date(`${year}-01-01`),
       lt: new Date(`${parseInt(year) + 1}-01-01`),
     };
+  }
+
+  if (minPages > 0) {
+    where.pdfPageCount = { gte: minPages };
   }
 
   if (query) {
@@ -459,28 +525,10 @@ export async function getStoreSize(): Promise<number> {
 }
 
 /**
- * Auto-hydrate: when DB is empty, trigger a background import
+ * Auto-hydrate: DISABLED - only GOV.IL imports allowed
  */
 export function ensureHydrated(): void {
-  const globalStore = globalThis as unknown as { __hydrating?: boolean };
-  if (globalStore.__hydrating) return;
-
-  prisma.judgment.count().then((count) => {
-    if (count > 0 || globalStore.__hydrating) return;
-    globalStore.__hydrating = true;
-
-    import('./daily-import').then(({ runDailyImport }) => {
-      runDailyImport()
-        .then((record) => {
-          console.log(`[auto-hydrate] Imported ${record.count} judgments (${record.newItems} new)`);
-          globalStore.__hydrating = false;
-        })
-        .catch((err) => {
-          console.error('[auto-hydrate] Failed:', err);
-          globalStore.__hydrating = false;
-        });
-    });
-  });
+  // Disabled - data comes only from decisions.court.gov.il via cron
 }
 
 // Re-export loadCache as no-op for backward compat

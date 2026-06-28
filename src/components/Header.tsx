@@ -9,12 +9,17 @@ import Swal from 'sweetalert2';
 
 const navLinks = [
   { href: '/', label: 'דף הבית' },
+  { href: '/about', label: 'אודות' },
   { href: '/search', label: 'פסקי דין' },
-  { href: '/search?advanced=true', label: 'חיפוש מתקדם' },
+  { href: '/my-judgments', label: 'פרסם פסקי דין' },
+  { href: '#', label: 'דירוג', dropdown: [
+    { href: '/rating/judges', label: 'דירוג שופטים' },
+    { href: '/rating/lawyers', label: 'דירוג עורכי דין' },
+  ]},
   { href: '/lawyers', label: 'פורטל עורכי דין' },
   { href: '/articles', label: 'מאמרים משפטיים' },
+  { href: '/legal-help', label: 'ליווי משפטי' },
   { href: '/contact', label: 'צור קשר' },
-  { href: '/admin/login', label: 'כניסת מנהל' },
 ];
 
 export default function Header() {
@@ -64,45 +69,53 @@ export default function Header() {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-1">
             {navLinks.map((link, i) => (
+              link.dropdown ? (
+                <div key={link.label} className="relative group">
+                  <button
+                    className="relative text-blue-100/80 hover:text-white px-3 py-2.5 text-sm font-medium transition-all duration-300 whitespace-nowrap flex items-center gap-1"
+                    style={{ animationDelay: `${i * 80}ms` }}
+                  >
+                    {link.label}
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-[#C9A84C] transition-all duration-400 group-hover:w-3/4 rounded-full" />
+                  </button>
+                  <div className="absolute top-full right-0 mt-1 bg-[#072a42] border border-[#C9A84C]/20 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 min-w-[180px] z-50">
+                    {link.dropdown.map((sub) => (
+                      <Link
+                        key={sub.href}
+                        href={sub.href}
+                        className="block px-4 py-2.5 text-sm text-blue-100/80 hover:text-white hover:bg-white/10 transition-colors first:rounded-t-lg last:rounded-b-lg"
+                      >
+                        {sub.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : (
               <Link
                 key={link.href}
                 href={link.href}
-                className="relative text-blue-100/80 hover:text-white px-4 py-2.5 text-sm font-medium transition-all duration-300 group"
+                className="relative text-blue-100/80 hover:text-white px-3 py-2.5 text-sm font-medium transition-all duration-300 group whitespace-nowrap"
                 style={{ animationDelay: `${i * 80}ms` }}
               >
                 {link.label}
                 <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-[#C9A84C] transition-all duration-400 group-hover:w-3/4 rounded-full" />
               </Link>
+              )
             ))}
             <Link
-              href={lawyerSlug ? `/lawyers/${lawyerSlug}/edit` : '/lawyers/login'}
-              className="mr-2 px-4 py-2 border border-[#C9A84C]/50 text-[#C9A84C] text-sm font-medium rounded-lg transition-all duration-300 hover:bg-[#C9A84C]/10"
+              href="/admin/login"
+              className="mr-2 px-4 py-2 border border-[#C9A84C]/50 text-[#C9A84C] text-sm font-medium rounded-lg transition-all duration-300 hover:bg-[#C9A84C]/10 whitespace-nowrap"
             >
-              {lawyerSlug ? 'הכרטיס שלי' : 'כניסה לעורכי דין'}
+              כניסת מנהל
             </Link>
             <Link
-              href="/search"
-              onClick={(e) => {
-                if (pathname === '/search') {
-                  e.preventDefault();
-                  Swal.fire({
-                    icon: 'info',
-                    title: 'אתה כבר בדף החיפוש',
-                    text: 'השתמש בשדה החיפוש למטה כדי לחפש פסקי דין',
-                    confirmButtonText: 'הבנתי',
-                    confirmButtonColor: '#C9A84C',
-                    timer: 3000,
-                    timerProgressBar: true,
-                  }).then(() => {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    const input = document.querySelector<HTMLInputElement>('input[type="search"], input[type="text"], input[placeholder]');
-                    if (input) input.focus();
-                  });
-                }
-              }}
-              className="mr-3 px-5 py-2 bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] text-sm font-bold rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-[#C9A84C]/25 hover:-translate-y-0.5"
+              href={lawyerSlug ? `/lawyers/${lawyerSlug}/edit` : '/lawyers/login'}
+              className="mr-2 px-4 py-2 border border-[#C9A84C]/50 text-[#C9A84C] text-sm font-medium rounded-lg transition-all duration-300 hover:bg-[#C9A84C]/10 whitespace-nowrap"
             >
-              חיפוש פסיקה
+              {lawyerSlug ? 'הכרטיס שלי' : 'כניסה לעורכי דין'}
             </Link>
           </nav>
 
@@ -121,10 +134,25 @@ export default function Header() {
       </div>
 
       {/* Mobile Navigation */}
-      <div className={`lg:hidden overflow-hidden transition-all duration-500 ease-in-out ${mobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+      <div className={`lg:hidden overflow-hidden transition-all duration-500 ease-in-out ${mobileMenuOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
         <div className="bg-[#072a42]/95 backdrop-blur-xl border-t border-[#C9A84C]/20">
           <nav className="px-4 py-4 space-y-1">
             {navLinks.map((link, i) => (
+              link.dropdown ? (
+                <div key={link.label}>
+                  <span className="block text-[#C9A84C] px-4 py-2 text-xs font-bold uppercase tracking-wider">{link.label}</span>
+                  {link.dropdown.map((sub) => (
+                    <Link
+                      key={sub.href}
+                      href={sub.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block text-blue-100/80 hover:text-white hover:bg-white/5 px-6 py-2.5 rounded-xl text-sm font-medium transition-all duration-300"
+                    >
+                      {sub.label}
+                    </Link>
+                  ))}
+                </div>
+              ) : (
               <Link
                 key={link.href}
                 href={link.href}
@@ -134,7 +162,15 @@ export default function Header() {
               >
                 {link.label}
               </Link>
+              )
             ))}
+            <Link
+              href="/admin/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block text-[#C9A84C] hover:text-white hover:bg-white/5 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 hover:pr-6"
+            >
+              כניסת מנהל
+            </Link>
             <Link
               href={lawyerSlug ? `/lawyers/${lawyerSlug}/edit` : '/lawyers/login'}
               onClick={() => setMobileMenuOpen(false)}

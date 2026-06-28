@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'אימייל וסיסמה נדרשים' }, { status: 400 });
     }
 
-    const isAdminEmail = email === ADMIN_USER.email || email === 'admin@mishpatli.co.il' || email === 'admin';
+    const isAdminEmail = email === ADMIN_USER.email || email === 'telaviv2u@gmail.com' || email === 'admin';
     if (isAdminEmail && password === getAdminPassword()) {
       const token = generateToken(ADMIN_USER.id, ADMIN_USER.role);
       return NextResponse.json({ token, user: ADMIN_USER });

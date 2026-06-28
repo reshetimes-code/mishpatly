@@ -156,7 +156,7 @@ function GalleryUpload({
 export default function LawyerRegisterPage() {
   const [form, setForm] = useState({
     fullName: '',
-    licenseNumber: '',
+    licenseNumber: `MP-${Date.now()}`,
     phone: '',
     email: '',
     password: '',
@@ -408,17 +408,7 @@ export default function LawyerRegisterPage() {
                     placeholder="עו״ד ישראל ישראלי"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">מספר רישיון *</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.licenseNumber}
-                    onChange={(e) => updateField('licenseNumber', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 py-2.5 px-3 text-sm focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-                    placeholder="12345"
-                  />
-                </div>
+                <input type="hidden" value={form.licenseNumber} />
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">טלפון *</label>
                   <input

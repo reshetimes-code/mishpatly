@@ -1,7 +1,3 @@
-"use client";
-
-import { useState, useEffect, useRef, FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import {
   FileText,
   Building2,
@@ -11,48 +7,25 @@ import {
   SlidersHorizontal,
   Bell,
   Phone,
-  ArrowLeft,
   Scale,
   Gavel,
   Globe,
   Users,
   ChevronLeft,
+  Star,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
-
-/* ------------------------------------------------------------------ */
-/*  Scroll reveal hook                                                 */
-/* ------------------------------------------------------------------ */
-function useReveal() {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    // Find the .reveal child or use the element itself
-    const revealEl = el.querySelector('.reveal') || el;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          revealEl.classList.add("visible");
-          observer.unobserve(el);
-        }
-      },
-      { threshold: 0.08 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-  return ref;
-}
+import HomeSearchForm from "./HomeSearchForm";
 
 /* ------------------------------------------------------------------ */
 /*  Data                                                               */
 /* ------------------------------------------------------------------ */
 const stats = [
-  { icon: FileText, value: "83,000+", label: "פסקי דין", suffix: "" },
-  { icon: Building2, value: "250+", label: "בתי משפט", suffix: "" },
-  { icon: Globe, value: "7", label: "מקורות מידע", suffix: "" },
-  { icon: Users, value: "24/7", label: "גישה חופשית", suffix: "" },
+  { icon: FileText, value: "1,500+", label: "פסקי דין" },
+  { icon: Building2, value: "50+", label: "בתי משפט" },
+  { icon: Globe, value: "1", label: "מקור רשמי" },
+  { icon: Users, value: "24/7", label: "גישה חופשית" },
 ];
 
 const features = [
@@ -61,58 +34,45 @@ const features = [
     title: "מאגר פסקי דין מקיף",
     description: "גישה למאגר הגדול בישראל הכולל עשרות אלפי פסקי דין, החלטות שיפוטיות ופרוטוקולים מכל בתי המשפט ברחבי הארץ.",
     image: "/images/feature1.jpg",
+    href: "/search",
   },
   {
     icon: ShieldCheck,
     title: "הסרת אזכורים",
     description: "שירות מקצועי להסרת אזכורים משפטיים ממנועי חיפוש ומאגרי מידע, תוך שמירה על פרטיותך וזכויותיך.",
     image: "/images/feature2.jpg",
+    href: "/removal",
   },
   {
     icon: SlidersHorizontal,
     title: "חיפוש מתקדם",
     description: "מנוע חיפוש חכם המאפשר סינון לפי שם, מספר תיק, בית משפט, תאריך ומילות מפתח לתוצאות מדויקות.",
     image: "/images/feature3.jpg",
+    href: "/search?advanced=true",
   },
   {
     icon: Bell,
     title: "עדכונים שוטפים",
     description: "קבלת התראות על פסקי דין חדשים, שינויים בתיקים קיימים ועדכוני חקיקה רלוונטיים ישירות למייל שלך.",
     image: "/images/feature4.jpg",
+    href: "/articles",
   },
 ];
 
 const categories = [
-  { name: "אזרחי", count: "42,000+", icon: Scale },
-  { name: "פלילי", count: "18,500+", icon: Gavel },
-  { name: "עבודה", count: "8,200+", icon: Users },
-  { name: "מנהלי", count: "5,800+", icon: Building2 },
-  { name: "משפחה", count: "4,100+", icon: Users },
-  { name: "נזיקין", count: "3,600+", icon: ShieldCheck },
+  { name: "אזרחי", icon: Scale },
+  { name: "פלילי", icon: Gavel },
+  { name: "עבודה", icon: Users },
+  { name: "מנהלי", icon: Building2 },
+  { name: "משפחה", icon: Users },
+  { name: "נזיקין", icon: ShieldCheck },
 ];
 
 
 /* ------------------------------------------------------------------ */
-/*  Page Component                                                     */
+/*  Page Component — Server Component (SSR for SEO)                    */
 /* ------------------------------------------------------------------ */
 export default function HomePage() {
-  const [query, setQuery] = useState("");
-  const router = useRouter();
-
-  const handleSearch = (e: FormEvent) => {
-    e.preventDefault();
-    if (query.trim()) {
-      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
-    }
-  };
-
-  const r1 = useReveal();
-  const r2 = useReveal();
-  const r3 = useReveal();
-  const r4 = useReveal();
-  const r5 = useReveal();
-  const r6 = useReveal();
-
   return (
     <div dir="rtl" className="min-h-screen bg-[#FAFBFC] text-[#1a1a2e]">
       {/* ============================================================ */}
@@ -138,39 +98,18 @@ export default function HomePage() {
             <div className="w-16 h-1 bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] rounded-full mb-8 animate-draw-line" />
 
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-6 animate-fade-in-up">
-              מאגר פסקי דין
+              משפט לי - מאגר פסקי דין
               <br />
               <span className="text-gradient-gold">והחלטות משפטיות</span>
             </h1>
 
             <p className="text-lg sm:text-xl text-blue-100/70 leading-relaxed mb-10 max-w-2xl animate-fade-in-up delay-200">
-              המאגר המשפטי המקיף ביותר בישראל. חיפוש מהיר ומדויק בעשרות אלפי
-              פסקי דין מכל בתי המשפט, עם עדכון יומי אוטומטי מ-7 מקורות מידע.
+              משפט לי (משפטלי) - מאגר פסקי דין מהרשות השופטת. חיפוש מהיר ומדויק
+              בפסקי דין מכל בתי המשפט, עם עדכון יומי אוטומטי.
             </p>
 
-            {/* Search form */}
-            <form
-              onSubmit={handleSearch}
-              className="flex flex-col sm:flex-row gap-3 mb-12 animate-fade-in-up delay-400"
-            >
-              <div className="relative flex-1">
-                <Search className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="הקלד שם אדם, חברה, מספר תיק או מילת חיפוש"
-                  className="w-full pr-12 pl-6 py-4.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl text-white text-base placeholder:text-white/40 outline-none focus:border-[#C9A84C]/60 focus:bg-white/15 transition-all duration-300"
-                />
-              </div>
-              <button
-                type="submit"
-                className="flex items-center justify-center gap-2 px-8 py-4.5 bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] text-base font-bold rounded-xl shadow-lg shadow-[#C9A84C]/20 transition-all duration-300 hover:shadow-xl hover:shadow-[#C9A84C]/30 hover:-translate-y-0.5 active:translate-y-0"
-              >
-                <Search className="h-5 w-5" />
-                חיפוש
-              </button>
-            </form>
+            {/* Search form — client component */}
+            <HomeSearchForm />
 
             {/* Trust indicators */}
             <div className="flex flex-wrap gap-4 animate-fade-in delay-600">
@@ -179,7 +118,7 @@ export default function HomePage() {
                 עדכון יומי אוטומטי
               </div>
               <div className="glass px-4 py-2 rounded-full text-xs text-white/60">
-                83,000+ פסקי דין במאגר
+                1,500+ פסקי דין במאגר
               </div>
               <div className="glass px-4 py-2 rounded-full text-xs text-white/60">
                 חיפוש חינמי ומהיר
@@ -192,8 +131,8 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/*  STATS SECTION — Floating cards                              */}
       {/* ============================================================ */}
-      <section className="relative z-10 -mt-16 px-4 sm:px-6" ref={r1}>
-        <div className="reveal mx-auto grid max-w-5xl grid-cols-2 lg:grid-cols-4 gap-4">
+      <section className="relative z-10 -mt-16 px-4 sm:px-6">
+        <div className="mx-auto grid max-w-5xl grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((stat, i) => (
             <div
               key={stat.label}
@@ -215,11 +154,11 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/*  FEATURES SECTION — Image cards with overlay                 */}
       {/* ============================================================ */}
-      <section className="px-4 py-24 sm:px-6" ref={r2}>
-        <div className="reveal mx-auto max-w-6xl">
+      <section className="px-4 py-24 sm:px-6">
+        <div className="mx-auto max-w-6xl">
           <div className="text-center mb-16">
             <span className="inline-block px-4 py-1.5 bg-[#C9A84C]/10 text-[#C9A84C] text-sm font-bold rounded-full mb-4">
-              למה משפטלי?
+              למה משפט לי?
             </span>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0B3C5D] mb-4">
               הפלטפורמה המשפטית
@@ -230,9 +169,10 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {features.map((feature, i) => (
-              <div
+              <Link
+                href={feature.href}
                 key={feature.title}
-                className="card-premium group bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100"
+                className="card-premium group bg-white rounded-2xl overflow-hidden shadow-lg border border-gray-100 cursor-pointer"
                 style={{ animationDelay: `${i * 150}ms` }}
               >
                 {/* Image */}
@@ -256,7 +196,7 @@ export default function HomePage() {
                     <ChevronLeft className="w-4 h-4" />
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -265,8 +205,8 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/*  CATEGORIES SECTION — Dark section with gold accents         */}
       {/* ============================================================ */}
-      <section className="relative overflow-hidden" ref={r3}>
-        <div className="reveal bg-gradient-to-l from-[#072a42] via-[#0B3C5D] to-[#0B3C5D] px-4 py-24 sm:px-6">
+      <section className="relative overflow-hidden">
+        <div className="bg-gradient-to-l from-[#072a42] via-[#0B3C5D] to-[#0B3C5D] px-4 py-24 sm:px-6">
           {/* Decorative circles */}
           <div className="absolute top-0 left-0 w-96 h-96 rounded-full bg-[#C9A84C]/5 -translate-x-1/2 -translate-y-1/2" />
           <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full bg-[#C9A84C]/5 translate-x-1/3 translate-y-1/3" />
@@ -292,7 +232,6 @@ export default function HomePage() {
                 >
                   <cat.icon className="h-8 w-8 text-[#C9A84C] mx-auto mb-3 transition-transform duration-300 group-hover:scale-110" strokeWidth={1.5} />
                   <h3 className="text-white font-bold text-sm mb-1">{cat.name}</h3>
-                  <span className="text-[#C9A84C]/70 text-xs">{cat.count}</span>
                 </Link>
               ))}
             </div>
@@ -303,13 +242,13 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/*  ABOUT SECTION — Why choose us                               */}
       {/* ============================================================ */}
-      <section className="px-4 py-24 sm:px-6" ref={r4}>
-        <div className="reveal mx-auto max-w-6xl">
+      <section className="px-4 py-24 sm:px-6">
+        <div className="mx-auto max-w-6xl">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             {/* Image side */}
             <div className="relative order-2 lg:order-1">
               <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-[#0B3C5D]/20 bg-[#0B3C5D]">
-                <img src="/images/about.jpg" alt="מאגר פסקי דין מקיף" className="w-full h-[400px] object-cover" />
+                <img src="/images/about.jpg" alt="מאגר פסקי דין מקיף" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0B3C5D]/40 to-transparent" />
               </div>
               <div className="absolute -top-4 -right-4 w-full h-full rounded-2xl border-2 border-[#C9A84C]/20 -z-10" />
@@ -326,9 +265,9 @@ export default function HomePage() {
                 <span className="text-gradient-gold">המקיף בישראל</span>
               </h2>
               <p className="text-gray-600 leading-relaxed mb-8">
-                משפטלי מציע גישה מהירה ונוחה לעשרות אלפי פסקי דין מכל
-                בתי המשפט בישראל. חיפוש לפי שם, מספר תיק, בית משפט
-                או מילות מפתח - עם תוצאות מדויקות תוך שניות.
+                משפט לי (משפטלי) - האתר שמביא לך את המשפט שלך.
+                חיפוש פסקי דין לפי שם אדם, חברה או מספר תיק מכל
+                בתי המשפט בישראל. תוצאות מדויקות תוך שניות, חיפוש חינמי.
               </p>
 
               <div className="space-y-4">
@@ -354,8 +293,8 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/*  TESTIMONIAL / TRUST SECTION                                 */}
       {/* ============================================================ */}
-      <section className="bg-white px-4 py-24 sm:px-6" ref={r5}>
-        <div className="reveal mx-auto max-w-6xl">
+      <section className="bg-white px-4 py-24 sm:px-6">
+        <div className="mx-auto max-w-6xl">
           <div className="bg-gradient-to-l from-[#0B3C5D] to-[#072a42] rounded-3xl p-10 sm:p-16 relative overflow-hidden">
             {/* Gold decorative */}
             <div className="absolute top-0 left-0 w-48 h-48 bg-[#C9A84C]/10 rounded-full -translate-x-1/2 -translate-y-1/2" />
@@ -368,7 +307,7 @@ export default function HomePage() {
               </blockquote>
               <div className="divider-gold w-16 mx-auto mb-6 opacity-40" />
               <p className="text-blue-100/60 text-sm">
-                משפטלי - הדרך הקלה ביותר לגשת למידע משפטי בישראל
+                משפט לי (mishpatly.co.il) - הדרך הקלה ביותר לגשת למידע משפטי בישראל
               </p>
             </div>
           </div>
@@ -378,8 +317,8 @@ export default function HomePage() {
       {/* ============================================================ */}
       {/*  CTA SECTION — Premium gold accent                           */}
       {/* ============================================================ */}
-      <section className="px-4 py-24 sm:px-6" ref={r6}>
-        <div className="reveal mx-auto max-w-4xl text-center">
+      <section className="px-4 py-24 sm:px-6">
+        <div className="mx-auto max-w-4xl text-center">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0B3C5D] mb-6">
             מחפש פסק דין <span className="text-gradient-gold">ספציפי?</span>
           </h2>
@@ -403,6 +342,65 @@ export default function HomePage() {
               צור קשר
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* ===== 3 Banners ===== */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Banner 1: העלאת פסק דין */}
+          <Link href="/my-judgments" className="group relative overflow-hidden rounded-2xl bg-gradient-to-bl from-[#0B3C5D] to-[#1a5276] p-8 text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-[#C9A84C]/10 rounded-full -translate-x-10 -translate-y-10" />
+            <div className="relative">
+              <div className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center mb-5">
+                <FileText className="h-7 w-7 text-[#C9A84C]" />
+              </div>
+              <h3 className="text-xl font-extrabold mb-2">העלאת פסק דין</h3>
+              <p className="text-blue-200 text-sm leading-relaxed mb-4">
+                העלו פסק דין פרטי לפרסום במאגר משפטלי. המסמך יפורסם לאחר בדיקה ואישור.
+              </p>
+              <span className="inline-flex items-center gap-1 text-[#C9A84C] font-medium text-sm group-hover:gap-2 transition-all">
+                העלאת מסמך
+                <ChevronLeft className="h-4 w-4" />
+              </span>
+            </div>
+          </Link>
+
+          {/* Banner 2: דירוג שופטים ועורכי דין */}
+          <Link href="/rating/judges" className="group relative overflow-hidden rounded-2xl bg-gradient-to-bl from-[#C9A84C] to-[#D4B85E] p-8 text-[#072a42] shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full -translate-x-10 -translate-y-10" />
+            <div className="relative">
+              <div className="w-14 h-14 rounded-xl bg-[#072a42]/10 flex items-center justify-center mb-5">
+                <Star className="h-7 w-7 text-[#072a42]" />
+              </div>
+              <h3 className="text-xl font-extrabold mb-2">דירוג שופטים ועורכי דין</h3>
+              <p className="text-[#072a42]/70 text-sm leading-relaxed mb-4">
+                צפו בדירוג שופטים לפי כמות פסקי דין ודירוג עורכי דין לפי ביקורות לקוחות.
+              </p>
+              <span className="inline-flex items-center gap-1 text-[#072a42] font-medium text-sm group-hover:gap-2 transition-all">
+                צפו בדירוגים
+                <ChevronLeft className="h-4 w-4" />
+              </span>
+            </div>
+          </Link>
+
+          {/* Banner 3: ליווי משפטי */}
+          <Link href="/legal-help" className="group relative overflow-hidden rounded-2xl bg-gradient-to-bl from-[#0B3C5D] to-[#1a5276] p-8 text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-[#C9A84C]/10 rounded-full -translate-x-10 -translate-y-10" />
+            <div className="relative">
+              <div className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center mb-5">
+                <Shield className="h-7 w-7 text-[#C9A84C]" />
+              </div>
+              <h3 className="text-xl font-extrabold mb-2">צריכים ליווי משפטי?</h3>
+              <p className="text-blue-200 text-sm leading-relaxed mb-4">
+                השאירו פרטים ועורך דין מומחה בתחום ייצור איתכם קשר. ייעוץ ראשוני ללא עלות.
+              </p>
+              <span className="inline-flex items-center gap-1 text-[#C9A84C] font-medium text-sm group-hover:gap-2 transition-all">
+                קבלו ייעוץ חינם
+                <ChevronLeft className="h-4 w-4" />
+              </span>
+            </div>
+          </Link>
         </div>
       </section>
     </div>

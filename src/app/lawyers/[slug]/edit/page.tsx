@@ -203,9 +203,13 @@ export default function LawyerEditPage() {
       }
 
       // Find lawyer by slug
-      const res = await fetch(`/api/lawyers?q=${encodeURIComponent(slug)}&limit=100&all=true`);
-      const data = await res.json();
-      const found = data.lawyers?.find((l: LawyerData) => l.slug === slug);
+      const res = await fetch(`/api/lawyers/${encodeURIComponent(slug)}`);
+      if (!res.ok) {
+        setAuthError('הכרטיס לא נמצא');
+        setLoading(false);
+        return;
+      }
+      const found = await res.json() as LawyerData | null;
 
       if (!found) {
         setAuthError('הכרטיס לא נמצא');

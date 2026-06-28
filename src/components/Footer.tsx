@@ -28,8 +28,8 @@ export default function Footer() {
                 </div>
               </div>
               <p className="text-sm leading-relaxed text-blue-200/60">
-                משפטלי הוא מאגר פסקי דין והחלטות משפטיות המציע חיפוש מהיר ומדויק
-                במאגר פסיקה עדכני מ-7 מקורות מידע. האתר מספק גישה נוחה למידע משפטי ציבורי.
+                משפט לי (משפטלי) הוא מאגר פסקי דין והחלטות משפטיות המציע חיפוש מהיר ומדויק
+                במאגר פסיקה עדכני מהרשות השופטת. משפט לי מספק גישה נוחה למידע משפטי ציבורי לכל אזרח.
               </p>
             </div>
 
@@ -45,6 +45,7 @@ export default function Footer() {
                   { href: '/search', label: 'חיפוש פסקי דין' },
                   { href: '/removal-request', label: 'בקשת הסרת אזכור' },
                   { href: '/articles', label: 'מאמרים משפטיים' },
+                  { href: '/about', label: 'אודות משפטלי' },
                   { href: '/accessibility', label: 'הצהרת נגישות' },
                   { href: '/privacy', label: 'מדיניות פרטיות' },
                   { href: '/terms', label: 'תנאי שימוש' },
@@ -59,18 +60,29 @@ export default function Footer() {
               </ul>
             </div>
 
-            {/* Legal Areas */}
+            {/* Legal Areas - linked to topic hub pages */}
             <div>
               <h3 className="text-white font-bold text-base mb-5 flex items-center gap-2">
                 <div className="w-1 h-5 bg-[#C9A84C] rounded-full" />
                 תחומי משפט
               </h3>
               <ul className="space-y-3 text-sm">
-                {['אזרחי', 'פלילי', 'עבודה', 'מנהלי', 'משפחה', 'נזיקין'].map((area) => (
-                  <li key={area}>
-                    <Link href={`/search?procedureType=${area}`} className="text-blue-200/60 hover:text-[#C9A84C] transition-colors duration-300 flex items-center gap-1 group">
+                {[
+                  { href: '/topic/dinei-avoda', label: 'דיני עבודה' },
+                  { href: '/topic/dinei-mishpaha', label: 'דיני משפחה' },
+                  { href: '/topic/nezikin', label: 'דיני נזיקין' },
+                  { href: '/topic/mishpat-plili', label: 'משפט פלילי' },
+                  { href: '/topic/mekarkein', label: 'דיני מקרקעין' },
+                  { href: '/topic/hozim', label: 'דיני חוזים' },
+                  { href: '/topic/teunot-drakhim', label: 'תאונות דרכים' },
+                  { href: '/topic/bituah', label: 'דיני ביטוח' },
+                  { href: '/topic/bituah-leumi', label: 'ביטוח לאומי' },
+                  { href: '/topic/hasarat-azkurim', label: 'הסרת אזכורים' },
+                ].map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className="text-blue-200/60 hover:text-[#C9A84C] transition-colors duration-300 flex items-center gap-1 group">
                       <ChevronLeft className="w-3 h-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
-                      {area}
+                      {link.label}
                     </Link>
                   </li>
                 ))}

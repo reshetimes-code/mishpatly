@@ -12,14 +12,9 @@ export async function POST() {
     const errors: string[] = [];
 
     for (const j of all) {
-      const prefix = j.sourceName?.includes('נבו') ? 'nevo' :
-                     j.sourceName?.includes('data.gov') ? 'gov' :
-                     j.sourceName?.includes('court') || j.sourceName?.includes('הרשות') ? 'court' :
-                     j.sourceName?.includes('רבני') ? 'rabbinic' :
-                     j.sourceName?.includes('PsakDin') ? 'psakdin' :
-                     j.sourceName?.includes('Takdin') ? 'takdin' :
-                     j.sourceName?.includes('Din') ? 'din' :
-                     j.sourceName?.includes('תולעת') ? 'tolaat' : 'case';
+      const prefix = j.sourceName?.includes('data.gov') ? 'gov' :
+                     j.sourceName?.includes('court') || j.sourceName?.includes('הרשות') || j.sourceName?.includes('decisions') ? 'court' :
+                     j.sourceName?.includes('רבני') ? 'rabbinic' : 'case';
 
       const newSlug = createSlug(`${prefix}-${j.caseNumber}${j.defendant ? '-' + j.defendant : ''}`);
 

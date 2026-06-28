@@ -241,17 +241,9 @@ export function getAllImportedItems(): ImportedItem[] {
  */
 export async function getSourceSummary(): Promise<{ source: string; sourceName: string; lastCount: number; lastDate: string; status: string }[]> {
   try {
-    // Get latest import for each source
-    const sources = ['data-gov-il', 'rabbinic-court', 'nevo', 'psakdin', 'court-gov-il', 'takdin', 'din-online', 'tolaat-hamishpat'];
+    const sources = ['decisions.court.gov.il'];
     const sourceNames: Record<string, string> = {
-      'data-gov-il': 'data.gov.il',
-      'rabbinic-court': 'בית דין רבני',
-      'nevo': 'נבו (Nevo)',
-      'psakdin': 'פסק דין (PsakDin)',
-      'court-gov-il': 'בתי המשפט',
-      'takdin': 'תקדין (Takdin)',
-      'din-online': 'דין אונליין',
-      'tolaat-hamishpat': 'תולעת המשפט',
+      'decisions.court.gov.il': 'פסקי דין - הרשות השופטת',
     };
 
     const results = [];

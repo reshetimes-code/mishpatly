@@ -86,11 +86,31 @@ function dbToStored(j: {
   };
 }
 
+const DEFAULT_COURTS = [
+  'בית המשפט העליון', 'בית המשפט המחוזי', 'בית משפט השלום',
+  'בית הדין הארצי לעבודה', 'בית הדין האזורי לעבודה',
+  'בית המשפט לענייני משפחה', 'בית המשפט לעניינים מנהליים',
+  'בית משפט לתעבורה', 'בית הדין הרבני', 'בית משפט',
+];
+
+const DEFAULT_CATEGORIES = [
+  'אזרחי', 'פלילי', 'משפחה', 'עבודה', 'מנהלי', 'נזיקין',
+  'חוזים', 'מקרקעין', 'ביטוח', 'מיסים', 'חדלות פירעון', 'בית דין רבני',
+];
+
+const DEFAULT_PROCEDURES = [
+  'אזרחי', 'פלילי', 'ערעור אזרחי', 'ערעור פלילי', 'בקשה',
+  'עתירה מנהלית', 'משפחה', 'עבודה', 'תעבורה', 'בג"ץ',
+];
+
 function getFilterOptions(judgments: StoredJudgment[]) {
-  const courts = Array.from(new Set(judgments.map((j) => j.courtName).filter(Boolean))).sort();
-  const procedureTypes = Array.from(new Set(judgments.map((j) => j.procedureType).filter(Boolean))).sort();
+  const dbCourts = Array.from(new Set(judgments.map((j) => j.courtName).filter(Boolean)));
+  const courts = Array.from(new Set([...DEFAULT_COURTS, ...dbCourts])).sort();
+  const dbProcedures = Array.from(new Set(judgments.map((j) => j.procedureType).filter(Boolean)));
+  const procedureTypes = Array.from(new Set([...DEFAULT_PROCEDURES, ...dbProcedures])).sort();
   const years = Array.from(new Set(judgments.map((j) => j.judgmentDate?.slice(0, 4)).filter(Boolean))).sort((a, b) => b.localeCompare(a));
-  const categories = Array.from(new Set(judgments.map((j) => j.category).filter(Boolean))).sort();
+  const dbCategories = Array.from(new Set(judgments.map((j) => j.category).filter(Boolean)));
+  const categories = Array.from(new Set([...DEFAULT_CATEGORIES, ...dbCategories])).sort();
   const sources = Array.from(new Set(judgments.map((j) => j.sourceName).filter(Boolean))).sort();
   const judges = Array.from(new Set(judgments.map((j) => j.judge).filter(Boolean))).sort();
   return { courts, procedureTypes, years, categories, sources, judges };
@@ -227,70 +247,60 @@ export default async function SearchPage({
                 </svg>
               </span>
             </div>
-            {isAdvanced && <input type="hidden" name="advanced" value="true" />}
             <button
               type="submit"
               className="rounded-lg bg-accent px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent/90"
             >
               חיפוש
             </button>
-            {!isAdvanced && (
-              <Link
-                href={buildUrl({ advanced: "true" })}
-                className="rounded-lg border border-accent px-4 py-2.5 text-sm font-medium text-accent transition-colors hover:bg-accent/10 text-center"
-              >
-                חיפוש מתקדם
-              </Link>
-            )}
           </form>
 
-          {/* ===== Advanced Search Filters ===== */}
-          {isAdvanced && (
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          {/* ===== Accordion Filters ===== */}
+          <details className="mt-3 group" open={isAdvanced || !!hasActiveFilters}>
+            <summary className="cursor-pointer list-none inline-flex items-center gap-1 rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent/90">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+              סינון מתקדם
+            </summary>
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">בית משפט</label>
-                <select name="court" defaultValue={courtFilter} className="w-full rounded-md border border-gray-300 bg-white py-2 px-3 text-sm focus:border-accent focus:outline-none" form="advanced-form">
+                <select name="court" defaultValue={courtFilter} className="w-full rounded-md border border-gray-300 bg-white py-2 px-3 text-sm focus:border-accent focus:outline-none" >
                   <option value="">הכל</option>
                   {allCourts.map((c) => (<option key={c} value={c}>{c}</option>))}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">שנה</label>
-                <select name="year" defaultValue={yearFilter} className="w-full rounded-md border border-gray-300 bg-white py-2 px-3 text-sm focus:border-accent focus:outline-none" form="advanced-form">
+                <select name="year" defaultValue={yearFilter} className="w-full rounded-md border border-gray-300 bg-white py-2 px-3 text-sm focus:border-accent focus:outline-none" >
                   <option value="">הכל</option>
                   {allYears.map((y) => (<option key={y} value={y}>{y}</option>))}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">סוג הליך</label>
-                <select name="procedure" defaultValue={procedureFilter} className="w-full rounded-md border border-gray-300 bg-white py-2 px-3 text-sm focus:border-accent focus:outline-none" form="advanced-form">
+                <select name="procedure" defaultValue={procedureFilter} className="w-full rounded-md border border-gray-300 bg-white py-2 px-3 text-sm focus:border-accent focus:outline-none" >
                   <option value="">הכל</option>
                   {allProcedureTypes.map((p) => (<option key={p} value={p}>{p}</option>))}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">קטגוריה</label>
-                <select name="category" defaultValue={categoryFilter} className="w-full rounded-md border border-gray-300 bg-white py-2 px-3 text-sm focus:border-accent focus:outline-none" form="advanced-form">
+                <select name="category" defaultValue={categoryFilter} className="w-full rounded-md border border-gray-300 bg-white py-2 px-3 text-sm focus:border-accent focus:outline-none" >
                   <option value="">הכל</option>
                   {allCategories.map((c) => (<option key={c} value={c}>{c}</option>))}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">מקור</label>
-                <select name="source" defaultValue={sourceFilter} className="w-full rounded-md border border-gray-300 bg-white py-2 px-3 text-sm focus:border-accent focus:outline-none" form="advanced-form">
-                  <option value="">הכל</option>
-                  {allSources.map((s) => (<option key={s} value={s}>{s}</option>))}
-                </select>
-              </div>
-              <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">שופט/ת</label>
-                <select name="judge" defaultValue={judgeFilter} className="w-full rounded-md border border-gray-300 bg-white py-2 px-3 text-sm focus:border-accent focus:outline-none" form="advanced-form">
+                <select name="judge" defaultValue={judgeFilter} className="w-full rounded-md border border-gray-300 bg-white py-2 px-3 text-sm focus:border-accent focus:outline-none" >
                   <option value="">הכל</option>
                   {allJudges.map((j) => (<option key={j} value={j}>{j}</option>))}
                 </select>
               </div>
             </div>
-          )}
+          </details>
 
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-gray-600">
@@ -391,20 +401,6 @@ export default async function SearchPage({
                     </ul>
                   </div>
                 )}
-                {allSources.length > 0 && (
-                  <div>
-                    <h3 className="mb-2 text-sm font-semibold text-legal-text">מקור</h3>
-                    <ul className="space-y-1.5">
-                      {allSources.map((src) => (
-                        <li key={src}>
-                          <Link href={buildUrl({ source: sourceFilter === src ? "" : src, page: "1" })} className={`block rounded px-2 py-1 text-sm transition-colors ${sourceFilter === src ? "bg-accent/10 font-semibold text-accent" : "text-gray-700 hover:bg-gray-100"}`}>
-                            {src}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
                 {hasActiveFilters && (
                   <Link
                     href={buildUrl({ court: "", year: "", procedure: "", category: "", source: "", judge: "", page: "1" })}
@@ -432,23 +428,36 @@ export default async function SearchPage({
               </div>
             ) : (
               paginatedResults.map((j) => (
-                <article key={j.id} className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+                <article key={j.id} className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md" itemScope itemType="https://schema.org/LegalCase">
                   <div className="mb-1 flex items-start justify-between gap-2">
                     <div>
-                      <Link href={`/judgment/${j.slug}`} className="text-lg font-extrabold text-primary hover:text-accent transition-colors sm:text-xl">
-                        {j.defendant || j.title}
+                      <Link href={`/judgment/${j.slug}`} className="text-lg font-extrabold text-primary hover:text-accent transition-colors sm:text-xl" itemProp="name">
+                        {j.plaintiff && j.defendant ? `${j.plaintiff} נ' ${j.defendant}` : j.defendant || j.plaintiff || j.title}
                       </Link>
                       <span className="mr-2 mt-0.5 inline-block whitespace-nowrap rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-semibold text-accent">
                         {j.procedureType || j.category}
                       </span>
                     </div>
-                    {j.sourceName && (
-                      <span className="shrink-0 rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">{j.sourceName}</span>
-                    )}
                   </div>
                   <Link href={`/judgment/${j.slug}`} className="mb-2 block text-sm font-medium text-gray-600 hover:text-primary transition-colors">
                     {j.caseNumber && j.caseNumber !== j.title ? `${j.caseNumber} - ` : ""}{j.parties || j.title}
                   </Link>
+                  {(j.plaintiff || j.defendant) && (
+                    <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                      {j.plaintiff && (
+                        <span className="text-gray-700">
+                          <span className="font-semibold text-gray-500">תובע: </span>
+                          <span className="font-bold text-legal-text" itemProp="plaintiff">{j.plaintiff}</span>
+                        </span>
+                      )}
+                      {j.defendant && (
+                        <span className="text-gray-700">
+                          <span className="font-semibold text-gray-500">נתבע: </span>
+                          <span className="font-bold text-legal-text" itemProp="defendant">{j.defendant}</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <p className="mb-2 text-sm text-gray-500">
                     {j.courtName}
                     {j.judgmentDate && (<><span className="mx-2">|</span>{formatDate(j.judgmentDate)}</>)}
@@ -464,16 +473,12 @@ export default async function SearchPage({
                     <Link href={`/judgment/${j.slug}`} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/90">
                       לצפייה במסמך
                     </Link>
-                    {j.sourceUrl && (
-                      <a href={j.sourceUrl} target="_blank" rel="noopener noreferrer" className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50">
-                        מקור
-                      </a>
-                    )}
-                    {j.pdfUrl && (
-                      <a href={j.pdfUrl} target="_blank" rel="noopener noreferrer" className="rounded-md border border-legal-green px-4 py-2 text-sm font-medium text-legal-green transition-colors hover:bg-legal-green hover:text-white">
-                        הורד PDF
-                      </a>
-                    )}
+                    <a href={`/api/judgments/${j.id}/preview`} className="rounded-md bg-[#0B3C5D] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#072a42]">
+                      הורד PDF - עמוד ראשון (חינם)
+                    </a>
+                    <Link href={`/payment/${j.id}`} className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white">
+                      הורדת מסמך מלא - 89 ₪
+                    </Link>
                     <Link href={`/removal-request?doc=${j.slug}`} className="rounded-md border border-legal-danger px-4 py-2 text-sm font-medium text-legal-danger transition-colors hover:bg-legal-danger hover:text-white">
                       בקשת הסרה
                     </Link>
@@ -542,7 +547,7 @@ export default async function SearchPage({
             <Link href="/removal-request" className="text-gray-600 hover:text-accent">הסרת אזכור משפטי</Link>
           </div>
           <p className="mt-4 text-xs text-gray-500 leading-relaxed">
-            משפטלי מציע מאגר פסקי דין מקיף הכולל מעל 83,000 פסקי דין מכל בתי המשפט בישראל. חפשו פסקי דין לפי שם נתבע, שם תובע, שם שופט, מספר תיק או מילות מפתח. המאגר מתעדכן באופן יומי אוטומטי מ-7 מקורות מידע שונים.
+            משפטלי מציע מאגר פסקי דין מהרשות השופטת הכולל פסקי דין מכל בתי המשפט בישראל. חפשו פסקי דין לפי שם נתבע, שם תובע, שם שופט, מספר תיק או מילות מפתח. המאגר מתעדכן באופן יומי אוטומטי.
           </p>
         </div>
       </div>

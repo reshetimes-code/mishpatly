@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getJudgmentBySlugFromDB, searchJudgmentsFromDB } from "@/lib/judgment-store";
+import AiChatButton from "./AiChatButton";
+import WhatsAppShare from "./WhatsAppShare";
 
 const SITE_URL = "https://mishpatly.co.il";
 
@@ -13,28 +15,26 @@ async function getJudgment(slug: string) {
   if (stored) {
     return {
       slug: stored.slug,
-      caseNumber: stored.caseNumber,
-      court: stored.courtName,
-      proceedingType: stored.procedureType || 'אזרחי',
+      caseNumber: decode(stored.caseNumber),
+      court: decode(stored.courtName),
+      proceedingType: decode(stored.procedureType || 'אזרחי'),
       date: stored.judgmentDate,
-      judge: stored.judge || '',
-      plaintiff: stored.plaintiff || '',
-      defendant: stored.defendant || '',
+      judge: decode(stored.judge || ''),
+      plaintiff: decode(stored.plaintiff || ''),
+      defendant: decode(stored.defendant || ''),
       status: 'סופי',
-      summary: stored.summary || '',
-      fullText: stored.fullText ? stored.fullText.split('\n\n').filter(Boolean) : [],
-      aiAnalysis: stored.aiAnalysis || '',
-      legalTopics: stored.legalTopics || [],
-      keyFindings: stored.keyFindings || '',
-      partiesArgs: stored.partiesArgs || '',
-      courtReasoning: stored.courtReasoning || '',
-      verdict: stored.verdict || '',
-      decisionType: stored.decisionType || '',
-      relatedCases: stored.relatedCases || [],
-      aiEnrichedAt: stored.aiEnrichedAt || '',
+      summary: decode(stored.summary || ''),
+      fullText: stored.fullText ? stored.fullText.split('\n\n').filter(Boolean).map(decode) : [],
+      legalTopics: (stored.legalTopics || []).map(decode),
+      decisionType: decode(stored.decisionType || ''),
+      relatedCases: (stored.relatedCases || []).map(decode),
       sourceUrl: stored.sourceUrl || '',
-      sourceName: stored.sourceName || '',
-      category: stored.category || '',
+      sourceName: decode(stored.sourceName || ''),
+      category: decode(stored.category || ''),
+      pdfUrl: stored.pdfUrl || '',
+      pdfPageCount: stored.pdfPageCount || 0,
+      firstPageText: stored.firstPageText ? decode(stored.firstPageText) : '',
+      judgmentId: stored.id,
       found: true,
     };
   }
@@ -51,18 +51,16 @@ async function getJudgment(slug: string) {
     status: "לא נמצא",
     summary: "פסק הדין לא נמצא במאגר. ייתכן שהוסר או שהכתובת שגויה.",
     fullText: [] as string[],
-    aiAnalysis: '',
     legalTopics: [] as string[],
-    keyFindings: '',
-    partiesArgs: '',
-    courtReasoning: '',
-    verdict: '',
     decisionType: '',
     relatedCases: [] as string[],
-    aiEnrichedAt: '',
     sourceUrl: '',
     sourceName: '',
     category: '',
+    pdfUrl: '',
+    pdfPageCount: 0,
+    firstPageText: '',
+    judgmentId: 0,
     found: false,
   };
 }
@@ -72,6 +70,11 @@ function formatDate(dateStr: string): string {
   const parts = dateStr.split("-");
   if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
   return dateStr;
+}
+
+/** Safely decode URI-encoded strings for display */
+function decode(str: string): string {
+  try { return decodeURIComponent(str); } catch { return str; }
 }
 
 // ---------------------------------------------------------------------------
@@ -88,93 +91,51 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const personName = j.defendant || j.plaintiff || '';
   const hasDefendant = !!j.defendant;
   const hasPlaintiff = !!j.plaintiff;
+  const caseNum = decode(j.caseNumber);
 
   const title = personName
     ? hasDefendant && hasPlaintiff
       ? `${j.defendant} - פסקי דין נגד ${j.defendant} | ${j.plaintiff} נגד ${j.defendant} | משפטלי`
-      : `${personName} - פסק דין ${j.caseNumber} | ${j.court} | משפטלי`
-    : `פסק דין ${j.caseNumber} | ${j.court} | משפטלי`;
+      : `${personName} - פסק דין ${caseNum} | ${j.court} | משפטלי`
+    : `פסק דין ${caseNum} | ${j.court} | משפטלי`;
 
   const description = personName
     ? hasDefendant && hasPlaintiff
-      ? `פסקי דין נגד ${j.defendant}. ${j.plaintiff} נגד ${j.defendant} - פסק דין ${j.caseNumber} ב${j.court}. צפו בפסקי דין של ${j.defendant}. ${(j.summary || '').slice(0, 100)}`
-      : `כל פסקי הדין עבור ${personName}. פסק דין ${j.caseNumber} ב${j.court}. ${(j.summary || '').slice(0, 120)}`
-    : `פסק דין ${j.caseNumber} - ${j.summary?.slice(0, 150)}`;
+      ? `פסקי דין נגד ${j.defendant}. ${j.plaintiff} נגד ${j.defendant} - פסק דין ${caseNum} ב${j.court}. צפו בפסקי דין של ${j.defendant}. ${(j.summary || '').slice(0, 100)}`
+      : `כל פסקי הדין עבור ${personName}. פסק דין ${caseNum} ב${j.court}. ${(j.summary || '').slice(0, 120)}`
+    : `פסק דין ${caseNum} - ${j.summary?.slice(0, 150)}`;
 
   const keywords = [
-    personName,
-    j.defendant,
-    j.plaintiff,
-    `פסק דין ${personName}`,
-    `פסקי דין ${personName}`,
-    `פסקי דין נגד ${j.defendant}`,
-    `${personName} פסק דין`,
-    `${personName} בית משפט`,
-    `${j.defendant} נתבע`,
+    personName, j.defendant, j.plaintiff,
+    `פסק דין ${personName}`, `פסקי דין ${personName}`,
+    `פסקי דין נגד ${j.defendant}`, `${personName} פסק דין`,
+    `${personName} בית משפט`, `${j.defendant} נתבע`,
     `${j.plaintiff} נגד ${j.defendant}`,
-    j.caseNumber,
-    j.court,
-    j.judge,
-    'פסק דין',
-    'פסקי דין',
-    'משפטלי',
-    'משפט לי',
-    j.proceedingType,
-    j.category,
-    ...j.legalTopics,
-    'חיפוש פסקי דין',
-    'חיפוש פסקי דין לפי שם',
-    'מאגר פסקי דין',
-    `הסרת אזכור ${personName}`,
+    j.caseNumber, j.court, j.judge,
+    'פסק דין', 'פסקי דין', 'משפטלי', 'משפט לי',
+    j.proceedingType, j.category, ...j.legalTopics,
+    'חיפוש פסקי דין', 'חיפוש פסקי דין לפי שם',
+    'מאגר פסקי דין', `הסרת אזכור ${personName}`,
+    'הרשות השופטת', 'נט המשפט', 'פסקי דין ישראל',
+    'הורדת פסק דין', 'צפייה בפסק דין',
+    `${j.court} פסקי דין`, `שופט ${j.judge}`,
   ].filter(Boolean);
 
   return {
-    title,
-    description,
-    keywords,
-    alternates: {
-      canonical: `${SITE_URL}/judgment/${slug}`,
-    },
+    title, description, keywords,
+    alternates: { canonical: `${SITE_URL}/judgment/${slug}` },
     openGraph: {
-      title: personName ? `${personName} - פסק דין ${j.caseNumber}` : `פסק דין ${j.caseNumber}`,
-      description,
-      type: "article",
-      locale: "he_IL",
-      siteName: "משפטלי",
+      title: personName ? `${personName} - פסק דין ${caseNum}` : `פסק דין ${caseNum}`,
+      description, type: "article", locale: "he_IL", siteName: "משפטלי",
       url: `${SITE_URL}/judgment/${slug}`,
-      images: [{ url: `${SITE_URL}/logo.png`, width: 200, height: 200, alt: `פסק דין ${personName}` }],
+      images: [{ url: `${SITE_URL}/opengraph-image`, width: 1200, height: 630, alt: `פסק דין ${personName}` }],
     },
-    twitter: {
-      card: "summary",
-      title: `${personName} - פסק דין | משפטלי`,
-      description,
-    },
+    twitter: { card: "summary_large_image", title: `${personName} - פסק דין | משפטלי`, description },
     robots: {
-      index: true,
-      follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-        "max-snippet": -1,
-        "max-image-preview": "large",
-      },
+      index: true, follow: true,
+      googleBot: { index: true, follow: true, "max-snippet": -1, "max-image-preview": "large" },
     },
   };
-}
-
-// ---------------------------------------------------------------------------
-// Section Component
-// ---------------------------------------------------------------------------
-function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-8">
-      <h3 className="flex items-center gap-2 text-lg font-bold text-[#0B3C5D] mb-3 pb-2 border-b border-gray-200">
-        <span className="text-xl">{icon}</span>
-        {title}
-      </h3>
-      <div className="text-gray-800 leading-8">{children}</div>
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -184,7 +145,6 @@ export default async function JudgmentPage({ params }: PageProps) {
   const { slug } = await params;
   const judgment = await getJudgment(slug);
 
-  // Get related judgments from same court
   const related = await searchJudgmentsFromDB({ court: judgment.court, limit: 4, status: 'PUBLISHED' });
   const relatedItems = related.judgments
     .filter(r => r.slug !== slug)
@@ -192,6 +152,20 @@ export default async function JudgmentPage({ params }: PageProps) {
     .map(r => ({ slug: r.slug, title: `${r.caseNumber} ${r.plaintiff || ''} נ' ${r.defendant || ''}` }));
 
   const personName = judgment.defendant || judgment.plaintiff || '';
+
+  // Data for AI chat (factual only - no analysis)
+  const aiContext = {
+    caseNumber: judgment.caseNumber,
+    court: judgment.court,
+    judge: judgment.judge,
+    plaintiff: judgment.plaintiff,
+    defendant: judgment.defendant,
+    date: judgment.date,
+    proceedingType: judgment.proceedingType,
+    category: judgment.category,
+    summary: judgment.summary,
+    decisionType: judgment.decisionType,
+  };
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -212,15 +186,9 @@ export default async function JudgmentPage({ params }: PageProps) {
           { "@type": "Thing", "name": judgment.category },
           ...judgment.legalTopics.map(t => ({ "@type": "Thing", "name": t })),
         ].filter(a => a.name),
-        "isPartOf": {
-          "@type": "WebSite",
-          "name": "משפטלי",
-          "url": SITE_URL,
-        },
+        "isPartOf": { "@type": "WebSite", "name": "משפטלי", "url": SITE_URL },
         "publisher": {
-          "@type": "Organization",
-          "name": "משפטלי",
-          "url": SITE_URL,
+          "@type": "Organization", "name": "משפטלי", "url": SITE_URL,
           "logo": { "@type": "ImageObject", "url": `${SITE_URL}/logo.png` },
         },
         "mentions": [
@@ -235,8 +203,7 @@ export default async function JudgmentPage({ params }: PageProps) {
         "datePublished": judgment.date,
         "author": { "@type": "Organization", "name": "משפטלי" },
         "publisher": {
-          "@type": "Organization",
-          "name": "משפטלי",
+          "@type": "Organization", "name": "משפטלי",
           "logo": { "@type": "ImageObject", "url": `${SITE_URL}/logo.png` },
         },
         "mainEntityOfPage": `${SITE_URL}/judgment/${slug}`,
@@ -252,9 +219,6 @@ export default async function JudgmentPage({ params }: PageProps) {
       },
     ],
   };
-
-  // Check how rich the content is
-  const hasAiContent = !!(judgment.aiAnalysis || judgment.keyFindings || judgment.courtReasoning);
 
   return (
     <>
@@ -280,34 +244,65 @@ export default async function JudgmentPage({ params }: PageProps) {
 
         {/* Document header */}
         <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6">
-          <h1 className="text-xl sm:text-2xl font-bold text-[#0B3C5D] mb-1">
-            {judgment.caseNumber}{judgment.plaintiff || judgment.defendant ? ` - ${[judgment.plaintiff, judgment.defendant].filter(Boolean).join(' נ\' ')}` : ''}{judgment.proceedingType ? `, ${judgment.proceedingType}` : ''}
+          <h1 className="text-xl sm:text-2xl font-bold text-[#0B3C5D] mb-3">
+            {judgment.caseNumber}{judgment.proceedingType ? `, ${judgment.proceedingType}` : ''}
           </h1>
+
+          {/* Parties & Judge - prominent for SEO */}
+          {(judgment.plaintiff || judgment.defendant || judgment.judge) && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {judgment.plaintiff && (
+                  <div>
+                    <span className="text-xs text-gray-400 block">תובע / עותר</span>
+                    <Link href={`/person/${encodeURIComponent(judgment.plaintiff)}`} className="text-lg font-bold text-[#0B3C5D] hover:text-[#C9A84C] transition-colors">
+                      {judgment.plaintiff}
+                    </Link>
+                  </div>
+                )}
+                {judgment.defendant && (
+                  <div>
+                    <span className="text-xs text-gray-400 block">נתבע / משיב</span>
+                    <Link href={`/person/${encodeURIComponent(judgment.defendant)}`} className="text-lg font-bold text-[#0B3C5D] hover:text-[#C9A84C] transition-colors">
+                      {judgment.defendant}
+                    </Link>
+                  </div>
+                )}
+                {judgment.judge && (
+                  <div>
+                    <span className="text-xs text-gray-400 block">שופט/ת</span>
+                    <Link href={`/person/${encodeURIComponent(judgment.judge)}`} className="text-lg font-bold text-[#0B3C5D] hover:text-[#C9A84C] transition-colors">
+                      {judgment.judge}
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <p className="text-sm text-gray-500 mb-4">
             {[judgment.caseNumber, judgment.court, judgment.decisionType].filter(Boolean).join(' | ')}
           </p>
 
           {/* Action buttons - top */}
           <div className="flex flex-wrap gap-3 mb-6">
-            <button type="button" className="bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] font-bold px-6 py-2.5 rounded-lg transition-all shadow hover:shadow-lg hover:-translate-y-0.5 text-sm">
-              רכישת מסמך
-            </button>
+            {judgment.pdfUrl && (
+              <a
+                href={`/api/judgments/${judgment.judgmentId}/preview`}
+                className="bg-[#0B3C5D] hover:bg-[#072a42] text-white font-bold px-6 py-2.5 rounded-lg transition-all shadow hover:shadow-lg hover:-translate-y-0.5 text-sm inline-block"
+              >
+                הורד PDF - עמוד ראשון (חינם)
+              </a>
+            )}
+            <Link href={`/payment/${judgment.judgmentId}`} className="bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] font-bold px-6 py-2.5 rounded-lg transition-all shadow hover:shadow-lg hover:-translate-y-0.5 text-sm inline-block">
+              הורדת מסמך מלא - 89 ₪
+            </Link>
             <Link
               href={`/removal-request?judgment=${slug}`}
               className="bg-[#0B3C5D] hover:bg-[#072a42] text-white font-bold rounded-lg px-6 py-2.5 transition-all shadow-sm text-sm"
             >
-              מחיקת אזכור
+              בקשת הסרה
             </Link>
-            {judgment.sourceUrl && (
-              <a
-                href={judgment.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-lg px-6 py-2.5 transition-all text-sm"
-              >
-                מקור המסמך &#x2197;
-              </a>
-            )}
           </div>
         </div>
 
@@ -376,12 +371,6 @@ export default async function JudgmentPage({ params }: PageProps) {
                       <dd className="font-medium">{judgment.defendant}</dd>
                     </div>
                   )}
-                  {judgment.sourceName && (
-                    <div>
-                      <dt className="text-gray-500 text-xs">מקור</dt>
-                      <dd className="font-medium">{judgment.sourceName}</dd>
-                    </div>
-                  )}
                 </dl>
 
                 {/* Legal topics */}
@@ -420,9 +409,9 @@ export default async function JudgmentPage({ params }: PageProps) {
 
                 {/* Purchase CTA in sidebar */}
                 <div className="mt-5 pt-4 border-t border-gray-200">
-                  <button type="button" className="w-full bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] font-bold px-4 py-3 rounded-lg transition-all shadow hover:shadow-lg hover:-translate-y-0.5 text-sm">
-                    רכישת מסמך מלא
-                  </button>
+                  <Link href={`/payment/${judgment.judgmentId}`} className="block w-full text-center bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] font-bold px-4 py-3 rounded-lg transition-all shadow hover:shadow-lg hover:-translate-y-0.5 text-sm">
+                    הורדת מסמך מלא - 89 ₪
+                  </Link>
                   <Link
                     href={`/removal-request?judgment=${slug}`}
                     className="block w-full text-center mt-2 bg-[#0B3C5D] hover:bg-[#072a42] text-white font-bold rounded-lg px-4 py-3 transition-all shadow-sm text-sm"
@@ -436,7 +425,6 @@ export default async function JudgmentPage({ params }: PageProps) {
             {/* Main content - document */}
             <div className="lg:col-span-2 order-1 lg:order-2">
               <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-                {/* Document header */}
                 <div className="px-6 sm:px-10 py-8 sm:py-10">
                   {/* Parties */}
                   {(judgment.plaintiff || judgment.defendant) && (
@@ -468,116 +456,61 @@ export default async function JudgmentPage({ params }: PageProps) {
 
                   {/* Summary */}
                   {judgment.summary && (
-                    <Section title="תקציר" icon="&#x1F4CB;">
-                      <p className="text-justify">{judgment.summary}</p>
-                    </Section>
+                    <div className="mb-8">
+                      <h3 className="text-lg font-bold text-center mb-4">תקציר</h3>
+                      <p className="leading-8 text-gray-800 text-justify">{judgment.summary}</p>
+                    </div>
                   )}
 
-                  {/* Verdict / Decision */}
-                  {judgment.verdict && (
-                    <Section title="הכרעת הדין" icon="&#x2696;">
-                      <div className="bg-[#f9f7f2] border-r-4 border-[#C9A84C] p-4 rounded-l-lg">
-                        <p className="text-justify font-medium">{judgment.verdict}</p>
-                      </div>
-                    </Section>
-                  )}
-
-                  {/* Key Findings */}
-                  {judgment.keyFindings && (
-                    <Section title="ממצאי מפתח" icon="&#x1F50D;">
-                      <div className="space-y-2">
-                        {judgment.keyFindings.split('\n').filter(Boolean).map((finding, i) => (
-                          <p key={i} className="text-justify">{finding}</p>
-                        ))}
-                      </div>
-                    </Section>
-                  )}
-
-                  {/* Parties Arguments */}
-                  {judgment.partiesArgs && (
-                    <Section title="טענות הצדדים" icon="&#x1F4AC;">
-                      <div className="space-y-3">
-                        {judgment.partiesArgs.split('\n').filter(Boolean).map((arg, i) => (
-                          <p key={i} className="text-justify">{arg}</p>
-                        ))}
-                      </div>
-                    </Section>
-                  )}
-
-                  {/* Court Reasoning */}
-                  {judgment.courtReasoning && (
-                    <Section title="נימוקי בית המשפט" icon="&#x1F3DB;">
-                      <div className="space-y-3">
-                        {judgment.courtReasoning.split('\n').filter(Boolean).map((reason, i) => (
-                          <p key={i} className="text-justify">{reason}</p>
-                        ))}
-                      </div>
-                    </Section>
-                  )}
-
-                  {/* AI Analysis */}
-                  {judgment.aiAnalysis && (
-                    <Section title="ניתוח משפטי" icon="&#x1F4D6;">
-                      <div className="space-y-3">
-                        {judgment.aiAnalysis.split('\n').filter(Boolean).map((para, i) => (
-                          <p key={i} className="text-justify">{para}</p>
-                        ))}
-                      </div>
-                    </Section>
-                  )}
-
-                  {/* Full text - document style (blurred for purchase) */}
+                  {/* Full text - first page only, clean display */}
                   {judgment.fullText.length > 0 && (
-                    <div className="mt-8">
-                      <h3 className="flex items-center gap-2 text-lg font-bold text-[#0B3C5D] mb-3 pb-2 border-b border-gray-200">
-                        <span className="text-xl">&#x1F4C4;</span>
-                        נוסח מלא של ההחלטה
-                      </h3>
+                    <div>
+                      <h3 className="text-xl font-bold text-center mb-6">החלטה</h3>
                       <div className="leading-8 text-gray-800 text-justify">
                         <p className="mb-4">{judgment.fullText[0]}</p>
+                      </div>
 
-                        {judgment.fullText.length > 1 && (
-                          <div className="relative">
-                            <div className="select-none pointer-events-none" aria-hidden="true">
-                              {judgment.fullText.slice(1).map((p, i) => (
-                                <p key={i} className="mb-4 blur-[3px]">{p}</p>
-                              ))}
-                            </div>
-                            <div className="absolute inset-0 bg-gradient-to-b from-white/30 via-white/70 to-white flex flex-col items-center justify-end pb-10">
-                              <div className="bg-[#f9f6ee] border border-[#e8dfc0] rounded-xl p-6 text-center max-w-lg mx-4">
-                                <p className="text-gray-700 mb-1 font-semibold">במסמך זה מוצג רק דף ראשון של פסק הדין/ההחלטה,</p>
-                                <p className="text-gray-600 mb-4 text-sm">ולא ניתן בהכרח ללמוד ממנו על תוצאות ההליך. על מנת לצפות במסמך המלא, יש לרכוש אותו.</p>
-                                <button type="button" className="bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] font-bold px-8 py-3 rounded-lg transition-all shadow hover:shadow-lg hover:-translate-y-0.5">
-                                  רכישת מסמך
-                                </button>
-                              </div>
-                            </div>
-                          </div>
+                      {/* Download buttons */}
+                      <div className="mt-8 pt-6 border-t border-gray-200 flex flex-wrap gap-3 justify-center">
+                        {judgment.pdfUrl && (
+                          <a
+                            href={`/api/judgments/${judgment.judgmentId}/preview`}
+                            className="bg-[#0B3C5D] hover:bg-[#072a42] text-white font-bold px-6 py-3 rounded-lg transition-all shadow hover:shadow-lg text-sm inline-block"
+                          >
+                            הורד PDF - עמוד ראשון (חינם)
+                          </a>
                         )}
+                        <Link href={`/payment/${judgment.judgmentId}`} className="bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] font-bold px-6 py-3 rounded-lg transition-all shadow hover:shadow-lg text-sm inline-block">
+                          הורדת מסמך מלא{judgment.pdfPageCount > 1 ? ` (${judgment.pdfPageCount} עמודים)` : ''} - 89 ₪
+                        </Link>
                       </div>
                     </div>
                   )}
 
-                  {/* Source link */}
-                  {judgment.sourceUrl && (
-                    <div className="mt-8 pt-4 border-t border-gray-200 text-sm">
-                      <a
-                        href={judgment.sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#0B3C5D] hover:text-[#C9A84C] hover:underline"
-                      >
-                        &#x1F517; צפה במסמך המקורי באתר {judgment.sourceName || 'המקור'}
-                      </a>
+
+                  {/* Parties at bottom */}
+                  {(judgment.plaintiff || judgment.defendant) && (
+                    <div className="mt-8 pt-6 border-t border-gray-200 text-sm text-gray-700">
+                      <p><strong>הצדדים במסמך זה:</strong> {[judgment.plaintiff, judgment.defendant].filter(Boolean).join(', ')}</p>
                     </div>
                   )}
                 </div>
 
+                {/* Legal disclaimer per judicial authority commitment letter */}
+                <div className="mx-6 sm:mx-10 mt-8 p-4 bg-[#f9f6ee] border border-[#e8dfc0] rounded-lg text-xs text-gray-600 leading-relaxed">
+                  <p className="font-semibold text-gray-700 mb-1">הבהרה משפטית</p>
+                  <p>
+                    המידע באתר משפטלי מוגש כשירות לציבור בלבד ואינו מהווה ייעוץ משפטי.
+                    אין להסתמך על תוכן זה כתחליף לייעוץ משפטי מקצועי.
+                    השימוש במידע הוא על אחריות המשתמש בלבד.
+                  </p>
+                </div>
+
                 {/* Action buttons - bottom */}
                 <div className="bg-gray-50 border-t border-gray-200 px-6 sm:px-10 py-5 flex flex-wrap gap-3">
-                  <button type="button" className="bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] font-bold px-6 py-2.5 rounded-lg transition-all shadow hover:shadow-lg hover:-translate-y-0.5 text-sm">
-                    רכישת מסמך
-                  </button>
+                  <Link href={`/payment/${judgment.judgmentId}`} className="bg-gradient-to-l from-[#C9A84C] to-[#D4B85E] text-[#072a42] font-bold px-6 py-2.5 rounded-lg transition-all shadow hover:shadow-lg hover:-translate-y-0.5 text-sm inline-block">
+                    הורדת מסמך מלא - 89 ₪
+                  </Link>
                   <Link
                     href={`/removal-request?judgment=${slug}`}
                     className="bg-[#0B3C5D] hover:bg-[#072a42] text-white font-bold rounded-lg px-6 py-2.5 transition-all shadow-sm text-sm"
@@ -586,6 +519,12 @@ export default async function JudgmentPage({ params }: PageProps) {
                   </Link>
                 </div>
               </div>
+
+              {/* AI Chat Button - user-initiated analysis */}
+              <AiChatButton caseData={aiContext} />
+
+              {/* WhatsApp Share */}
+              <WhatsAppShare caseNumber={judgment.caseNumber} personName={personName} slug={slug} />
 
               {/* Related & Search below document */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">

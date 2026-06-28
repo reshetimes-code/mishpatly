@@ -190,11 +190,8 @@ export default function AdminDashboardPage() {
 
   const sourceColors: Record<string, string> = {
     'data.gov.il': 'bg-blue-100 text-blue-700',
-    'נבו (Nevo)': 'bg-purple-100 text-purple-700',
-    'פסק דין (PsakDin)': 'bg-green-100 text-green-700',
     'הרשות השופטת (court.gov.il)': 'bg-indigo-100 text-indigo-700',
-    'תקדין (Takdin)': 'bg-orange-100 text-orange-700',
-    'דין אונליין (Din)': 'bg-teal-100 text-teal-700',
+    'decisions.court.gov.il': 'bg-indigo-100 text-indigo-700',
     'בית הדין הרבני': 'bg-yellow-100 text-yellow-800',
   };
 
@@ -311,11 +308,8 @@ export default function AdminDashboardPage() {
               {[
                 { name: 'data.gov.il', label: 'data.gov.il - חופש המידע', desc: 'עתירות מנהליות מפורטל הנתונים הפתוחים', url: 'https://data.gov.il' },
                 { name: 'בית הדין הרבני', label: 'בית הדין הרבני', desc: 'פסקי דין מבית הדין הרבני', url: 'https://data.gov.il' },
-                { name: 'נבו (Nevo)', label: 'נבו - Nevo', desc: 'גיליונות יומיים מנבו עם פסיקה עדכנית', url: 'https://www.nevo.co.il' },
-                { name: 'פסק דין (PsakDin)', label: 'פסק דין - PsakDin', desc: 'מאגר פסקי דין וניתוחים משפטיים', url: 'https://www.psakdin.co.il' },
                 { name: 'הרשות השופטת (court.gov.il)', label: 'הרשות השופטת', desc: 'אתר הרשות השופטת של מדינת ישראל', url: 'https://www.court.gov.il' },
-                { name: 'תקדין (Takdin)', label: 'תקדין - Takdin', desc: 'מאגר משפטי מוביל בישראל', url: 'https://www.takdin.co.il' },
-                { name: 'דין אונליין (Din)', label: 'דין אונליין - Din', desc: 'פורטל משפטי עם מאמרים ופסיקה', url: 'https://www.din.co.il' },
+                { name: 'decisions.court.gov.il', label: 'decisions.court.gov.il', desc: 'החלטות שיפוטיות מהרשות השופטת', url: 'https://decisions.court.gov.il' },
               ].map(source => {
                 const sourceData = stats.sources?.find(s => s.sourceName === source.name);
                 const count = stats.sourceBreakdown[source.name] || 0;

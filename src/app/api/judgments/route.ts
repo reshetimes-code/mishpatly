@@ -13,15 +13,17 @@ export async function GET(request: NextRequest) {
   const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20')));
   const query = searchParams.get('query') || searchParams.get('q') || searchParams.get('search') || '';
-  const status = searchParams.get('status') || '';
+  const status = searchParams.get('status') || 'PUBLISHED';
   const source = searchParams.get('source') || '';
   const category = searchParams.get('category') || '';
+  const minPages = parseInt(searchParams.get('minPages') || '0') || 0;
 
   const result = await searchJudgmentsFromDB({
     query,
     status,
     source,
     category,
+    minPages,
     page,
     limit,
   });

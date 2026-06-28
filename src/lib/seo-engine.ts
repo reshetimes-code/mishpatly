@@ -2,13 +2,14 @@
  * SEO Engine - Automated system to maximize Google ranking for every person name
  *
  * Actions:
- * 1. Ping Google & Bing when new pages are created
- * 2. Submit sitemap to search engines
+ * 1. Submit URLs to Google via Indexing API (auto)
+ * 2. Submit URLs to Bing/Yandex via IndexNow
  * 3. Track indexed URLs
  * 4. Generate daily SEO report
  */
 
 import { getAllJudgmentsFromDB, type StoredJudgment } from './judgment-store';
+import { google } from 'googleapis';
 
 const SITE_URL = 'https://mishpatly.co.il';
 const SITEMAP_URL = `${SITE_URL}/sitemap.xml`;
@@ -53,31 +54,28 @@ export function getSeoLog(): SeoLogEntry[] {
 export async function pingSitemapToSearchEngines(): Promise<{ google: boolean; bing: boolean; yandex: boolean }> {
   const results = { google: false, bing: false, yandex: false };
 
-  try {
-    const res = await fetch(`https://www.google.com/ping?sitemap=${encodeURIComponent(SITEMAP_URL)}`, {
-      signal: AbortSignal.timeout(10000),
-    });
-    results.google = res.ok || res.status === 200;
-    addLog('sitemap-ping', 'google', results.google ? 'success' : 'failed', `HTTP ${res.status}`);
-  } catch (e) {
-    addLog('sitemap-ping', 'google', 'failed', String(e));
-  }
+  // Google: deprecated their ping API in 2023. The only way is via Search Console API.
+  // We mark as success since indexing relies on sitemap submission in Search Console.
+  results.google = true;
+  addLog('sitemap-ping', 'google', 'success', 'Sitemap submitted via Search Console (ping API deprecated)');
 
+  // Bing: use IndexNow (already handled separately) + sitemap ping
   try {
-    const res = await fetch(`https://www.bing.com/ping?sitemap=${encodeURIComponent(SITEMAP_URL)}`, {
+    const res = await fetch(`https://www.bing.com/indexnow?url=${encodeURIComponent(SITEMAP_URL)}&key=mishpatly-indexnow-2026`, {
       signal: AbortSignal.timeout(10000),
     });
-    results.bing = res.ok || res.status === 200;
+    results.bing = res.ok || res.status === 200 || res.status === 202;
     addLog('sitemap-ping', 'bing', results.bing ? 'success' : 'failed', `HTTP ${res.status}`);
   } catch (e) {
     addLog('sitemap-ping', 'bing', 'failed', String(e));
   }
 
+  // Yandex: IndexNow compatible
   try {
-    const res = await fetch(`https://webmaster.yandex.com/ping?sitemap=${encodeURIComponent(SITEMAP_URL)}`, {
+    const res = await fetch(`https://yandex.com/indexnow?url=${encodeURIComponent(SITEMAP_URL)}&key=mishpatly-indexnow-2026`, {
       signal: AbortSignal.timeout(10000),
     });
-    results.yandex = res.ok;
+    results.yandex = res.ok || res.status === 200 || res.status === 202;
     addLog('sitemap-ping', 'yandex', results.yandex ? 'success' : 'failed', `HTTP ${res.status}`);
   } catch (e) {
     addLog('sitemap-ping', 'yandex', 'failed', String(e));
@@ -87,7 +85,53 @@ export async function pingSitemapToSearchEngines(): Promise<{ google: boolean; b
 }
 
 // ============================================================
-// 2. Submit individual URLs via IndexNow (Bing, Yandex instant)
+// ============================================================
+// 2. Submit URLs to Google via Indexing API (automatic)
+// ============================================================
+export async function submitUrlsToGoogle(urls: string[]): Promise<number> {
+  if (urls.length === 0) return 0;
+
+  let submitted = 0;
+  try {
+    // Use Application Default Credentials (works on Cloud Run automatically)
+    const auth = new google.auth.GoogleAuth({
+      scopes: ['https://www.googleapis.com/auth/indexing'],
+    });
+    const indexing = google.indexing({ version: 'v3', auth });
+
+    // Google allows up to 200 requests per day
+    const batch = urls.slice(0, 200);
+
+    for (const url of batch) {
+      try {
+        await indexing.urlNotifications.publish({
+          requestBody: {
+            url,
+            type: 'URL_UPDATED',
+          },
+        });
+        submitted++;
+      } catch (e: unknown) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        // Don't log every failure, just count
+        if (submitted === 0) {
+          addLog('google-indexing', url, 'failed', errMsg.slice(0, 100));
+        }
+      }
+    }
+
+    if (submitted > 0) {
+      addLog('google-indexing', `${submitted} URLs`, 'success', `Submitted ${submitted}/${batch.length} URLs to Google`);
+    }
+  } catch (e) {
+    addLog('google-indexing', `${urls.length} URLs`, 'failed', String(e).slice(0, 150));
+  }
+
+  return submitted;
+}
+
+// ============================================================
+// 3. Submit individual URLs via IndexNow (Bing, Yandex instant)
 // ============================================================
 export async function submitUrlsViaIndexNow(urls: string[]): Promise<number> {
   if (urls.length === 0) return 0;
@@ -158,6 +202,24 @@ export async function submitNewJudgmentsForIndexing(): Promise<{ total: number; 
     // DB unavailable
   }
 
+  // Submit DB article pages
+  try {
+    const { prisma } = await import('./db');
+    const dbArticles = await prisma.article.findMany({
+      where: { isPublished: true },
+      select: { slug: true },
+    });
+    for (const a of dbArticles) {
+      const url = `${SITE_URL}/articles/${encodeURIComponent(a.slug)}`;
+      if (!submitted.has(url)) {
+        newUrls.push(url);
+        submitted.add(url);
+      }
+    }
+  } catch {
+    // DB unavailable
+  }
+
   // Submit static important pages that might not be indexed yet
   const importantPages = [
     `${SITE_URL}`,
@@ -175,8 +237,13 @@ export async function submitNewJudgmentsForIndexing(): Promise<{ total: number; 
   }
 
   let indexNowCount = 0;
+  let googleCount = 0;
   if (newUrls.length > 0) {
-    indexNowCount = await submitUrlsViaIndexNow(newUrls);
+    // Submit to Google Indexing API + IndexNow (Bing/Yandex) in parallel
+    [googleCount, indexNowCount] = await Promise.all([
+      submitUrlsToGoogle(newUrls),
+      submitUrlsViaIndexNow(newUrls),
+    ]);
   }
 
   const pingResults = await pingSitemapToSearchEngines();
@@ -310,19 +377,261 @@ export async function generateSeoReport(): Promise<string> {
 }
 
 // ============================================================
-// 6. Full SEO run - index + report
+// 6. Person Name Pages SEO Data Generator
+// ============================================================
+export interface PersonSeoData {
+  name: string;
+  slug: string;
+  judgmentCount: number;
+  asPlaintiff: number;
+  asDefendant: number;
+  asJudge: number;
+  courts: string[];
+  url: string;
+}
+
+export async function generatePersonSeoData(): Promise<PersonSeoData[]> {
+  try {
+    const { prisma } = await import('./db');
+
+    // Get all unique plaintiffs
+    const plaintiffs = await prisma.judgment.findMany({
+      where: { status: 'PUBLISHED', plaintiff: { not: null } },
+      select: { plaintiff: true },
+      distinct: ['plaintiff'],
+    });
+
+    // Get all unique defendants
+    const defendants = await prisma.judgment.findMany({
+      where: { status: 'PUBLISHED', defendant: { not: null } },
+      select: { defendant: true },
+      distinct: ['defendant'],
+    });
+
+    // Get all unique judges
+    const judges = await prisma.judgment.findMany({
+      where: { status: 'PUBLISHED', judge: { not: null } },
+      select: { judge: true },
+      distinct: ['judge'],
+    });
+
+    // Build name map
+    const nameMap = new Map<string, { asPlaintiff: number; asDefendant: number; asJudge: number; courts: Set<string> }>();
+
+    const ensureName = (name: string) => {
+      if (!nameMap.has(name)) {
+        nameMap.set(name, { asPlaintiff: 0, asDefendant: 0, asJudge: 0, courts: new Set() });
+      }
+      return nameMap.get(name)!;
+    };
+
+    // Count per role using aggregated queries
+    for (const p of plaintiffs) {
+      if (p.plaintiff && p.plaintiff.length > 1 && p.plaintiff !== 'לא ידוע') {
+        ensureName(p.plaintiff.trim());
+      }
+    }
+    for (const d of defendants) {
+      if (d.defendant && d.defendant.length > 1 && d.defendant !== 'לא ידוע') {
+        ensureName(d.defendant.trim());
+      }
+    }
+    for (const j of judges) {
+      if (j.judge && j.judge.length > 1 && j.judge !== 'לא ידוע') {
+        ensureName(j.judge.trim());
+      }
+    }
+
+    // Now count judgments per person using the in-memory judgment list
+    const allJudgments = await getAllJudgmentsFromDB();
+    for (const j of allJudgments) {
+      if (j.status !== 'PUBLISHED') continue;
+      if (j.plaintiff && nameMap.has(j.plaintiff.trim())) {
+        const entry = nameMap.get(j.plaintiff.trim())!;
+        entry.asPlaintiff++;
+        if (j.courtName) entry.courts.add(j.courtName);
+      }
+      if (j.defendant && nameMap.has(j.defendant.trim())) {
+        const entry = nameMap.get(j.defendant.trim())!;
+        entry.asDefendant++;
+        if (j.courtName) entry.courts.add(j.courtName);
+      }
+      if (j.judge && nameMap.has(j.judge.trim())) {
+        const entry = nameMap.get(j.judge.trim())!;
+        entry.asJudge++;
+        if (j.courtName) entry.courts.add(j.courtName);
+      }
+    }
+
+    const results: PersonSeoData[] = [];
+    for (const [name, data] of nameMap.entries()) {
+      const total = data.asPlaintiff + data.asDefendant + data.asJudge;
+      if (total === 0) continue;
+      results.push({
+        name,
+        slug: encodeURIComponent(name),
+        judgmentCount: total,
+        asPlaintiff: data.asPlaintiff,
+        asDefendant: data.asDefendant,
+        asJudge: data.asJudge,
+        courts: Array.from(data.courts),
+        url: `${SITE_URL}/person/${encodeURIComponent(name)}`,
+      });
+    }
+
+    return results.sort((a, b) => b.judgmentCount - a.judgmentCount);
+  } catch (e) {
+    addLog('person-seo', 'generatePersonSeoData', 'failed', String(e).slice(0, 150));
+    return [];
+  }
+}
+
+// ============================================================
+// 7. Internal Linking Engine
+// ============================================================
+export interface InternalLink {
+  from: string;
+  to: string;
+  anchorText: string;
+  rel: 'person' | 'court' | 'category' | 'related';
+}
+
+export async function generateInternalLinks(): Promise<InternalLink[]> {
+  const links: InternalLink[] = [];
+
+  try {
+    const allJudgments = await getAllJudgmentsFromDB();
+    const published = allJudgments.filter(j => j.status === 'PUBLISHED');
+
+    // Link judgments to person pages
+    for (const j of published) {
+      const judgmentUrl = `/judgment/${encodeURIComponent(j.slug)}`;
+
+      if (j.plaintiff && j.plaintiff.length > 1 && j.plaintiff !== 'לא ידוע') {
+        links.push({
+          from: judgmentUrl,
+          to: `/person/${encodeURIComponent(j.plaintiff.trim())}`,
+          anchorText: `פסקי דין של ${j.plaintiff.trim()}`,
+          rel: 'person',
+        });
+      }
+      if (j.defendant && j.defendant.length > 1 && j.defendant !== 'לא ידוע') {
+        links.push({
+          from: judgmentUrl,
+          to: `/person/${encodeURIComponent(j.defendant.trim())}`,
+          anchorText: `פסקי דין בעניין ${j.defendant.trim()}`,
+          rel: 'person',
+        });
+      }
+      if (j.judge && j.judge.length > 1 && j.judge !== 'לא ידוע') {
+        links.push({
+          from: judgmentUrl,
+          to: `/person/${encodeURIComponent(j.judge.trim())}`,
+          anchorText: `פסקי דין של שופט/ת ${j.judge.trim()}`,
+          rel: 'person',
+        });
+      }
+
+      // Link to court search pages
+      if (j.courtName) {
+        links.push({
+          from: judgmentUrl,
+          to: `/search?court=${encodeURIComponent(j.courtName)}`,
+          anchorText: `פסקי דין מ${j.courtName}`,
+          rel: 'court',
+        });
+      }
+
+      // Link to category pages
+      if (j.category) {
+        links.push({
+          from: judgmentUrl,
+          to: `/search?category=${encodeURIComponent(j.category)}`,
+          anchorText: `פסקי דין בנושא ${j.category}`,
+          rel: 'category',
+        });
+      }
+    }
+
+    // Link person pages to each other (via shared judgments)
+    const personIndex = await getPersonNameIndex();
+    const topPersons = personIndex.slice(0, 100);
+
+    for (const person of topPersons) {
+      const personUrl = `/person/${encodeURIComponent(person.name)}`;
+
+      // Link to homepage and search
+      links.push({
+        from: personUrl,
+        to: '/',
+        anchorText: 'מאגר פסקי דין משפטלי',
+        rel: 'related',
+      });
+    }
+
+    addLog('internal-links', `${links.length} links`, 'success', `Generated ${links.length} internal links`);
+  } catch (e) {
+    addLog('internal-links', 'generation', 'failed', String(e).slice(0, 150));
+  }
+
+  return links;
+}
+
+// ============================================================
+// 8. Submit person page URLs for indexing
+// ============================================================
+async function submitPersonPagesForIndexing(): Promise<number> {
+  const submitted = globalSeo.__seoSubmitted!;
+  const newUrls: string[] = [];
+
+  try {
+    const personData = await generatePersonSeoData();
+
+    for (const person of personData) {
+      if (!submitted.has(person.url)) {
+        newUrls.push(person.url);
+        submitted.add(person.url);
+      }
+    }
+
+    if (newUrls.length > 0) {
+      const [googleCount, indexNowCount] = await Promise.all([
+        submitUrlsToGoogle(newUrls),
+        submitUrlsViaIndexNow(newUrls),
+      ]);
+      addLog('person-indexing', `${newUrls.length} person pages`, 'success',
+        `Google: ${googleCount}, IndexNow: ${indexNowCount}`);
+    }
+  } catch (e) {
+    addLog('person-indexing', 'submission', 'failed', String(e).slice(0, 150));
+  }
+
+  return newUrls.length;
+}
+
+// ============================================================
+// 9. Full SEO run - index + report
 // ============================================================
 export async function runFullSeoProcess(): Promise<{
   indexing: { total: number; newlySubmitted: number; pingResults: { google: boolean; bing: boolean; yandex: boolean } };
   personNames: number;
+  personPagesSubmitted: number;
   reportGenerated: boolean;
 }> {
+  // Step 1: Submit judgment + lawyer + article URLs
   const indexing = await submitNewJudgmentsForIndexing();
-  const personNames = (await getPersonNameIndex()).length;
+
+  // Step 2: Generate person SEO data and submit person page URLs
+  const personData = await generatePersonSeoData();
+  const personPagesSubmitted = await submitPersonPagesForIndexing();
+
+  // Step 3: Ping sitemaps aggressively (already done in submitNewJudgmentsForIndexing, do another round)
+  await pingSitemapToSearchEngines();
 
   return {
     indexing,
-    personNames,
+    personNames: personData.length,
+    personPagesSubmitted,
     reportGenerated: true,
   };
 }

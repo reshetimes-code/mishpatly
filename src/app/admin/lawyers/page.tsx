@@ -137,8 +137,10 @@ export default function AdminLawyersPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setMessage({ type: 'success', text: 'הכרטיס עודכן בהצלחה' });
+        setEditingLawyer(null);
         fetchLawyers();
+        const Swal = (await import('sweetalert2')).default;
+        Swal.fire({ icon: 'success', title: 'הכרטיס עודכן בהצלחה', timer: 1500, showConfirmButton: false });
       } else {
         setMessage({ type: 'error', text: data.error || 'שגיאה בעדכון' });
       }
@@ -186,6 +188,32 @@ export default function AdminLawyersPage() {
         body: JSON.stringify({ licenseNumber: lawyer.licenseNumber, isActive: !lawyer.isActive }),
       });
       if (res.ok) fetchLawyers();
+    } catch { /* ignore */ }
+  }
+
+  async function deleteLawyer(lawyer: Lawyer) {
+    const Swal = (await import('sweetalert2')).default;
+    const result = await Swal.fire({
+      title: 'מחיקת כרטיס לצמיתות',
+      html: `<b>${lawyer.fullName}</b><br>פעולה זו בלתי הפיכה!`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      confirmButtonText: 'מחק לצמיתות',
+      cancelButtonText: 'ביטול',
+    });
+    if (!result.isConfirmed) return;
+    try {
+      const res = await fetch(`/api/lawyers/${lawyer.id}`, {
+        method: 'DELETE',
+        headers: adminHeaders(),
+      });
+      if (res.ok) {
+        fetchLawyers();
+        Swal.fire('נמחק', 'הכרטיס נמחק לצמיתות', 'success');
+      } else {
+        Swal.fire('שגיאה', 'לא ניתן למחוק', 'error');
+      }
     } catch { /* ignore */ }
   }
 
@@ -295,6 +323,10 @@ export default function AdminLawyersPage() {
                         <button onClick={() => toggleActive(l)} title={l.isActive ? 'הסתרה' : 'הפעלה'}
                           className={`p-1.5 rounded-lg transition ${l.isActive ? 'hover:bg-red-50 text-legal-danger' : 'hover:bg-green-50 text-green-600'}`}>
                           {l.isActive ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                        </button>
+                        <button onClick={() => deleteLawyer(l)} title="מחיקה לצמיתות"
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition">
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>

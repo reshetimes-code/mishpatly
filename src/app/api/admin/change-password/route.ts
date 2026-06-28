@@ -4,11 +4,11 @@ import { verifyToken, generateToken } from '@/lib/auth';
 // In-memory admin password (replace with DB in production)
 const globalStore = globalThis as unknown as { __adminPassword?: string };
 if (!globalStore.__adminPassword) {
-  globalStore.__adminPassword = 'admin123';
+  globalStore.__adminPassword = 'hh1719hh';
 }
 
 export function getAdminPassword(): string {
-  return globalStore.__adminPassword || 'admin123';
+  return globalStore.__adminPassword || 'hh1719hh';
 }
 
 export async function POST(request: NextRequest) {
