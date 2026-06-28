@@ -98,17 +98,13 @@ async function fetchConfidentialEmails(): Promise<Array<{
       // Search for emails from the court about confidentiality (last 7 days, read or unread)
       const since = new Date();
       since.setDate(since.getDate() - 7);
-      const messages = client.fetch(
-        {
-          from: COURT_SENDER,
-          since,
-        },
-        {
-          uid: true,
-          envelope: true,
-          source: true,
-        }
-      );
+      const uids = await client.search({ from: COURT_SENDER, since }, { uid: true });
+      if (!uids || uids.length === 0) {
+        lock.release();
+        await client.logout();
+        return emails;
+      }
+      const messages = client.fetch(uids, { uid: true, envelope: true, source: true }, { uid: true });
 
       const { simpleParser } = await import('mailparser');
 

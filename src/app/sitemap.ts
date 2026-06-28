@@ -125,51 +125,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }));
   } catch { /* DB unavailable */ }
 
-  // Person name landing pages (plaintiffs + defendants)
-  let personPages: MetadataRoute.Sitemap = [];
-  try {
-    const plaintiffs = await prisma.judgment.findMany({
-      where: { status: 'PUBLISHED', plaintiff: { not: null } },
-      select: { plaintiff: true },
-      distinct: ['plaintiff'],
-    });
-    const defendants = await prisma.judgment.findMany({
-      where: { status: 'PUBLISHED', defendant: { not: null } },
-      select: { defendant: true },
-      distinct: ['defendant'],
-    });
-
-    const personNames = new Set<string>();
-    for (const p of plaintiffs) {
-      if (p.plaintiff && p.plaintiff.length > 1 && p.plaintiff !== 'לא ידוע') {
-        personNames.add(p.plaintiff.trim());
-      }
-    }
-    for (const d of defendants) {
-      if (d.defendant && d.defendant.length > 1 && d.defendant !== 'לא ידוע') {
-        personNames.add(d.defendant.trim());
-      }
-    }
-
-    // Limit to stay under 50K total sitemap entries
-    const personNameArray = Array.from(personNames).slice(0, 20000);
-    personPages = personNameArray.map((name) => ({
-      url: `${BASE_URL}/person/${encodeURIComponent(name)}`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.9,
-    }));
-  } catch { /* DB unavailable */ }
-
   // ALL judgment pages — lightweight query (only slug + date)
-  // Google allows up to 50,000 URLs per sitemap
+  // Person pages are in /sitemap-persons — keeping this under 50K
   let judgmentPages: MetadataRoute.Sitemap = [];
   try {
     const judgments = await prisma.judgment.findMany({
       where: { status: 'PUBLISHED' },
       select: { slug: true, updatedAt: true },
       orderBy: { id: 'asc' },
-      take: 49000, // Stay under 50K limit including other pages
+      take: 45000, // Leave room for static/lawyer/judge/article pages
     });
     judgmentPages = judgments.map((j) => ({
       url: `${BASE_URL}/judgment/${encodeURIComponent(j.slug)}`,
@@ -187,7 +151,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...dbArticlePages,
     ...lawyerPages,
     ...judgePages,
-    ...personPages,
     ...judgmentPages,
   ];
 }

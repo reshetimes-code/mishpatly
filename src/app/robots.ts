@@ -27,6 +27,9 @@ export default function robots(): MetadataRoute.Robots {
     sitemap: [
       'https://mishpatly.co.il/sitemap.xml',
       'https://mishpatly.co.il/sitemap-judgments',
+      'https://mishpatly.co.il/sitemap-persons',
+      'https://mishpatly.co.il/sitemap-persons?page=1',
+      'https://mishpatly.co.il/sitemap-persons?page=2',
     ],
     host: 'https://mishpatly.co.il',
   };

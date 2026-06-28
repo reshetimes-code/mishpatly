@@ -581,26 +581,62 @@ export async function generateInternalLinks(): Promise<InternalLink[]> {
 // 8. Submit person page URLs for indexing
 // ============================================================
 async function submitPersonPagesForIndexing(): Promise<number> {
-  const submitted = globalSeo.__seoSubmitted!;
   const newUrls: string[] = [];
 
   try {
     const personData = await generatePersonSeoData();
 
+    // Load already-submitted URLs from DB (persistent across restarts)
+    const { prisma } = await import('./db');
+    const alreadySubmitted = await prisma.importLog.findMany({
+      where: { source: 'person-indexing-google' },
+      select: { sourceName: true },
+    });
+    const submittedSet = new Set(alreadySubmitted.map((r: { sourceName: string }) => r.sourceName));
+
+    // Find truly new URLs never submitted to Google
+    const newForGoogle: string[] = [];
+    const newForIndexNow: string[] = [];
+
     for (const person of personData) {
-      if (!submitted.has(person.url)) {
-        newUrls.push(person.url);
-        submitted.add(person.url);
+      if (!submittedSet.has(person.url)) {
+        newForGoogle.push(person.url);
       }
+      // IndexNow: send all (Bing/Yandex handle re-submissions gracefully)
+      newForIndexNow.push(person.url);
     }
 
-    if (newUrls.length > 0) {
-      const [googleCount, indexNowCount] = await Promise.all([
-        submitUrlsToGoogle(newUrls),
-        submitUrlsViaIndexNow(newUrls),
-      ]);
-      addLog('person-indexing', `${newUrls.length} person pages`, 'success',
-        `Google: ${googleCount}, IndexNow: ${indexNowCount}`);
+    // Send to Google (200/day quota — only truly new pages)
+    let googleCount = 0;
+    if (newForGoogle.length > 0) {
+      googleCount = await submitUrlsToGoogle(newForGoogle);
+      // Persist submitted URLs to DB so quota isn't wasted on restarts
+      const submitted = newForGoogle.slice(0, 200);
+      const { prisma: prismaDb } = await import('./db');
+      await prismaDb.importLog.createMany({
+        data: submitted.map(url => ({
+          source: 'person-indexing-google',
+          sourceName: url,
+          importDate: new Date(),
+          totalCount: 1,
+          newCount: 1,
+          updatedCount: 0,
+          status: 'submitted',
+        })),
+      }).catch(() => {});
+      newUrls.push(...submitted);
+    }
+
+    // Send ALL to IndexNow in batches of 10K (Bing/Yandex — no daily quota)
+    let indexNowCount = 0;
+    for (let i = 0; i < newForIndexNow.length; i += 10000) {
+      const batch = newForIndexNow.slice(i, i + 10000);
+      indexNowCount += await submitUrlsViaIndexNow(batch);
+    }
+
+    if (googleCount > 0 || indexNowCount > 0) {
+      addLog('person-indexing', `${personData.length} person pages`, 'success',
+        `Google: ${googleCount} new, IndexNow: ${indexNowCount}, pending: ${newForGoogle.length - googleCount}`);
     }
   } catch (e) {
     addLog('person-indexing', 'submission', 'failed', String(e).slice(0, 150));
