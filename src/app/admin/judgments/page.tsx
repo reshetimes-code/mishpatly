@@ -394,7 +394,15 @@ export default function AdminJudgmentsPage() {
                       <td className="px-4 py-3 text-gray-500">{j.caseNumber}</td>
                       <td className="px-4 py-3 text-gray-500">{j.courtName}</td>
                       <td className="px-4 py-3 text-gray-500">
-                        {j.judgmentDate ? new Date(j.judgmentDate).toLocaleDateString('he-IL') : '-'}
+                        {(() => {
+                          const fmt = (s: string) => { const p = s.slice(0,10).split('-'); const m = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']; return p.length===3 ? `${p[2]} ${m[parseInt(p[1],10)-1]} ${p[0]}` : s; };
+                          return (
+                            <div>
+                              <div>{j.createdAt ? fmt(j.createdAt) : '-'}</div>
+                              {j.judgmentDate && <div className="text-xs text-gray-400 mt-0.5">פסק דין: {fmt(j.judgmentDate)}</div>}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3">
                         <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-700 whitespace-nowrap">

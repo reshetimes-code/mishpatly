@@ -168,9 +168,9 @@ export default function RootLayout({
                 "@type": "OfferCatalog",
                 "name": "שירותי משפטלי",
                 "itemListElement": [
-                  { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "חיפוש פסקי דין לפי שם", "description": "חיפוש חינמי במאגר פסקי דין מהרשות השופטת" } },
-                  { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "הסרת אזכורים משפטיים", "description": "שירות הסרת אזכורים ממנועי חיפוש" } },
-                  { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "פורטל עורכי דין", "description": "מאגר עורכי דין לפי התמחות ואזור" } }
+                  { "@type": "Offer", "name": "חיפוש פסקי דין לפי שם", "itemOffered": { "@type": "Service", "name": "חיפוש פסקי דין לפי שם", "description": "חיפוש חינמי במאגר פסקי דין מהרשות השופטת" } },
+                  { "@type": "Offer", "name": "הסרת אזכורים משפטיים", "itemOffered": { "@type": "Service", "name": "הסרת אזכורים משפטיים", "description": "שירות הסרת אזכורים ממנועי חיפוש" } },
+                  { "@type": "Offer", "name": "פורטל עורכי דין", "itemOffered": { "@type": "Service", "name": "פורטל עורכי דין", "description": "מאגר עורכי דין לפי התמחות ואזור" } }
                 ]
               },
               "sameAs": [
@@ -197,6 +197,22 @@ export default function RootLayout({
             {
               "@type": "FAQPage",
               "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": "מה זה משפט לי?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "משפט לי (משפטלי) הוא מאגר פסקי הדין הגדול בישראל. האתר מאפשר חיפוש חינמי של פסקי דין לפי שם אדם, חברה, שופט או מספר תיק - מכל בתי המשפט בישראל. הכתובת: mishpatly.co.il. משפט לי אינו קשור למשפט Lie המתמטי - מדובר בפלטפורמה משפטית-ציבורית ישראלית."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "מה ההבדל בין משפטלי למשפט לי?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "משפטלי ומשפט לי הם שני שמות לאותה פלטפורמה: mishpatly.co.il. השם 'משפט לי' מתאר את הרעיון שכל אזרח יכול לחפש פסקי דין הנוגעים אליו. האתר מציע חיפוש חינמי של פסקי דין מהרשות השופטת, הסרת אזכורים משפטיים ופורטל עורכי דין."
+                  }
+                },
                 {
                   "@type": "Question",
                   "name": "איך מחפשים פסק דין לפי שם?",

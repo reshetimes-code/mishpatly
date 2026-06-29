@@ -6,10 +6,10 @@ import { prisma } from '@/lib/db';
 const SITE_URL = 'https://mishpatly.co.il';
 
 export const metadata: Metadata = {
-  title: 'אודות משפטלי | המאגר המשפטי המוביל בישראל - פסקי דין, חקיקה ופסיקה',
+  title: 'אודות משפט לי - משפטלי | המאגר המשפטי המוביל בישראל',
   description:
-    'משפטלי - המאגר המשפטי המוביל בישראל. מאגר פסקי דין והחלטות מכל בתי המשפט, פורטל אנשי מקצוע משפטיים, עדכוני חקיקה ופסיקה. הצטרפו למאגר המשפטי המתקדם ביותר.',
-  keywords: ['משפטלי', 'אודות', 'מאגר פסקי דין', 'פורטל משפטי', 'אנשי מקצוע משפטיים', 'עורכי דין', 'מומחים משפטיים', 'חקיקה', 'פסיקה'],
+    'משפט לי (משפטלי) - המאגר המשפטי המוביל בישראל. חיפוש פסקי דין לפי שם חינם, מאגר פסקי דין מכל בתי המשפט, פורטל עורכי דין ושירות הסרת אזכורים משפטיים.',
+  keywords: ['משפטלי', 'משפט לי', 'אודות', 'מאגר פסקי דין', 'פורטל משפטי', 'אנשי מקצוע משפטיים', 'עורכי דין', 'מומחים משפטיים', 'חקיקה', 'פסיקה'],
   alternates: { canonical: `${SITE_URL}/about` },
   openGraph: {
     title: 'אודות משפטלי | המאגר המשפטי המוביל בישראל',
@@ -90,11 +90,11 @@ export default async function AboutPage() {
         <section className="bg-gradient-to-bl from-[#0B3C5D] via-[#072a42] to-[#0B3C5D] text-white py-16">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
             <h1 className="text-3xl sm:text-4xl font-extrabold mb-4">
-              אודות <span className="text-[#C9A84C]">משפטלי</span>
+              אודות <span className="text-[#C9A84C]">משפט לי - משפטלי</span>
             </h1>
             <p className="text-blue-100/80 text-lg max-w-3xl mx-auto leading-relaxed">
-              המאגר המשפטי המוביל בישראל - פסקי דין והחלטות מכל בתי המשפט,
-              פורטל אנשי מקצוע, ועדכוני חקיקה ופסיקה
+              משפט לי (mishpatly.co.il) - המאגר המשפטי המוביל בישראל.
+              חיפוש פסקי דין חינם לפי שם מכל בתי המשפט, פורטל עורכי דין, והסרת אזכורים משפטיים.
             </p>
           </div>
         </section>

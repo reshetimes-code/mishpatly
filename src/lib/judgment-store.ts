@@ -390,7 +390,7 @@ export async function searchJudgmentsFromDB(opts: {
     prisma.judgment.count({ where }),
     prisma.judgment.findMany({
       where,
-      orderBy: { judgmentDate: 'desc' },
+      orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
     }),

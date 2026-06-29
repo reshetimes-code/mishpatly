@@ -65,11 +65,15 @@ async function getJudgment(slug: string) {
   };
 }
 
+const HEBREW_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
 function formatDate(dateStr: string): string {
   if (!dateStr) return '';
-  const parts = dateStr.split("-");
-  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  return dateStr;
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const [year, month, day] = parts;
+  const monthName = HEBREW_MONTHS[parseInt(month, 10) - 1] ?? month;
+  return `${day} ${monthName} ${year}`;
 }
 
 /** Safely decode URI-encoded strings for display */
@@ -437,7 +441,7 @@ export default async function JudgmentPage({ params }: PageProps) {
 
                   {/* Court */}
                   {judgment.court && <h2 className="text-xl font-bold text-[#0B3C5D] text-center mb-2">{judgment.court}</h2>}
-                  {judgment.date && <p className="text-center text-gray-600 mb-2">[ {formatDate(judgment.date)} ]</p>}
+                  {judgment.date && <p className="text-center text-gray-600 mb-2">{formatDate(judgment.date)}</p>}
                   {judgment.judge && (
                     <p className="text-center text-gray-700 mb-6">
                       כבוד השופט/ת <span className="font-semibold">{judgment.judge}</span>
