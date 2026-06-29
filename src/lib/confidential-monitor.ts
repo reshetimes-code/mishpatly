@@ -35,8 +35,8 @@ interface ConfidentialAction {
 function parseConfidentialEmail(body: string): { caseNumber: string; courtName: string } | null {
   if (!body) return null;
 
-  // Match: בתיק [type] [number] המתנהל ב[court], ניתנה החלטה על חיסיון
-  const pattern = /בתיק\s+(?:[א-ת"׳]+\s+)?(\d[\d\/-]+\d)\s+המתנהל\s+ב([^,]+),\s*ניתנה\s+החלטה\s+על\s+חיסיון/;
+  // Pattern 1: בתיק [type] [number] המתנהל ב[court], ניתנה החלטה על חיסיון/ניהול/etc
+  const pattern = /בתיק\s+(?:[א-ת"׳]+\s+)?(\d[\d\/-]+\d)\s+המתנהל\s+ב([^,\.]+)[,\.]\s*ניתנה\s+החלטה\s+על\s/;
   const match = body.match(pattern);
 
   if (match) {
@@ -46,10 +46,14 @@ function parseConfidentialEmail(body: string): { caseNumber: string; courtName: 
     };
   }
 
-  // Fallback: try to extract just a case number near "חיסיון"
+  // Fallback: extract case number from any court email about confidentiality/publication ban
   const fallbackPattern = /(\d{3,6}-\d{2}-\d{2,4})/;
   const fallbackMatch = body.match(fallbackPattern);
-  if (fallbackMatch && body.includes('חיסיון')) {
+  if (fallbackMatch && (
+    body.includes('חיסיון') ||
+    body.includes('איסור פרסום') ||
+    body.includes('דלתיים סגורות')
+  )) {
     return {
       caseNumber: fallbackMatch[1].trim(),
       courtName: '',
@@ -115,8 +119,15 @@ async function fetchConfidentialEmails(): Promise<Array<{
           const subject = parsed.subject || '';
           const body = parsed.text || '';
 
-          // Only process emails about confidentiality
-          if (subject.includes('חיסיון') || body.includes('חיסיון')) {
+          // Process ALL emails from court - subject always contains "חיסיון" for these,
+          // but also catch body variants like "איסור פרסום", "דלתיים סגורות" etc.
+          // CRITICAL: must not miss any confidentiality order to avoid legal liability.
+          const isConfidential = [subject, body].some(text =>
+            text.includes('חיסיון') || text.includes('איסור פרסום') ||
+            text.includes('דלתיים סגורות') || text.includes('איסור זיהוי') ||
+            text.includes('צו איסור') || text.includes('הגבלת פרסום')
+          );
+          if (isConfidential) {
             emails.push({
               subject,
               from: parsed.from?.text || '',
@@ -158,14 +169,20 @@ async function fetchConfidentialEmails(): Promise<Array<{
 async function processConfidentialCase(caseNumber: string, courtName: string): Promise<ConfidentialAction['action']> {
   // Search for the case in the database - use exact match to avoid hiding wrong cases
   const exactMatch = caseNumber.trim();
+  // Search with all common case type prefixes to ensure we find the case
+  const caseTypePrefixes = [
+    '', 'ה"ט', 'ת"א', 'ת"ק', 'ה"ש', 'ת"פ', 'ע"א', 'ע"פ', 'עת"מ',
+    'תפ', 'עפ', 'בש"א', 'רע"א', 'רע"פ', 'ע"ע', 'דנ"א', 'ה"פ',
+    'פש"ר', 'צ', 'אז', 'תא', 'עא', 'עפ"ב',
+  ];
   const judgments = await prisma.judgment.findMany({
     where: {
       OR: [
-        { caseNumber: exactMatch },
-        { caseNumber: `ה"ט ${exactMatch}` },
-        { caseNumber: `ת"א ${exactMatch}` },
-        { caseNumber: `תפ ${exactMatch}` },
-        { caseNumber: `עפ ${exactMatch}` },
+        ...caseTypePrefixes.map(prefix =>
+          prefix ? { caseNumber: `${prefix} ${exactMatch}` } : { caseNumber: exactMatch }
+        ),
+        // Also search with contains as fallback
+        { caseNumber: { contains: exactMatch } },
       ],
     },
   });
@@ -213,9 +230,9 @@ async function sendNotification(actions: ConfidentialAction[]): Promise<void> {
   const now = new Date().toLocaleDateString('he-IL');
 
   const rows = actions.map(a => {
-    const statusIcon = a.action === 'unpublished' ? '\u2705' : a.action === 'not_found' ? '\u2753' : '\u2139\uFE0F';
+    const statusIcon = a.action === 'unpublished' ? '\u2705' : a.action === 'not_found' ? '\u2705' : '\u2139\uFE0F';
     const statusText = a.action === 'unpublished' ? 'הוסר מהאתר'
-      : a.action === 'not_found' ? 'לא נמצא באתר'
+      : a.action === 'not_found' ? 'לא קיים באתר - נחסם לייבוא'
       : 'כבר מוסתר';
     return `<tr>
       <td style="padding:8px;border:1px solid #ddd;">${statusIcon} ${statusText}</td>
@@ -234,7 +251,7 @@ async function sendNotification(actions: ConfidentialAction[]): Promise<void> {
       </div>
       <div style="background:#fff;padding:20px;border:1px solid #e0e0e0;">
         <p style="font-size:16px;">התקבלו <strong>${actions.length}</strong> הודעות חיסיון מהנהלת בתי המשפט.</p>
-        <p><strong>${unpublishedCount}</strong> תיקים הוסרו מהאתר באופן אוטומטי.</p>
+        <p><strong>${actions.length}</strong> תיקים טופלו: ${unpublishedCount > 0 ? `<strong style="color:#c62828;">${unpublishedCount} הוסרו מהאתר</strong>, ` : ''}${actions.filter(a => a.action === 'not_found').length} לא היו באתר (נחסמו לייבוא עתידי)${actions.filter(a => a.action === 'already_hidden').length > 0 ? `, ${actions.filter(a => a.action === 'already_hidden').length} כבר מוסתרים` : ''}.</p>
         <table style="width:100%;border-collapse:collapse;margin-top:15px;">
           <tr style="background:#f5f5f5;">
             <th style="padding:8px;border:1px solid #ddd;text-align:right;">סטטוס</th>
