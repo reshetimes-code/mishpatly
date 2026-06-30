@@ -107,22 +107,44 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
   } catch { /* DB unavailable */ }
 
-  // Judge landing pages (distinct judges) — point to /person/ pages
-  let judgePages: MetadataRoute.Sitemap = [];
+  // Person pages — judges, plaintiffs, defendants → /person/ pages
+  let personPages: MetadataRoute.Sitemap = [];
   try {
-    const judges = await prisma.judgment.findMany({
-      where: { status: 'PUBLISHED', judge: { not: null } },
-      select: { judge: true },
-      distinct: ['judge'],
-    });
-    judgePages = judges
-      .filter(j => j.judge && j.judge.length > 1)
-      .map((j) => ({
-        url: `${BASE_URL}/person/${encodeURIComponent(j.judge!)}`,
-        lastModified: new Date(),
-        changeFrequency: 'weekly' as const,
-        priority: 0.9,
-      }));
+    const [judges, plaintiffs, defendants] = await Promise.all([
+      prisma.judgment.findMany({
+        where: { status: 'PUBLISHED', judge: { not: null } },
+        select: { judge: true },
+        distinct: ['judge'],
+      }),
+      prisma.judgment.findMany({
+        where: { status: 'PUBLISHED', plaintiff: { not: null } },
+        select: { plaintiff: true },
+        distinct: ['plaintiff'],
+      }),
+      prisma.judgment.findMany({
+        where: { status: 'PUBLISHED', defendant: { not: null } },
+        select: { defendant: true },
+        distinct: ['defendant'],
+      }),
+    ]);
+
+    const nameSet = new Set<string>();
+    for (const j of judges) {
+      if (j.judge && j.judge.length > 1 && j.judge !== 'לא ידוע') nameSet.add(j.judge.trim());
+    }
+    for (const p of plaintiffs) {
+      if (p.plaintiff && p.plaintiff.length > 1 && p.plaintiff !== 'לא ידוע') nameSet.add(p.plaintiff.trim());
+    }
+    for (const d of defendants) {
+      if (d.defendant && d.defendant.length > 1 && d.defendant !== 'לא ידוע') nameSet.add(d.defendant.trim());
+    }
+
+    personPages = Array.from(nameSet).slice(0, 40000).map((name) => ({
+      url: `${BASE_URL}/person/${encodeURIComponent(name)}`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.9,
+    }));
   } catch { /* DB unavailable */ }
 
   // ALL judgment pages — lightweight query (only slug + date)
@@ -150,7 +172,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...articlePages,
     ...dbArticlePages,
     ...lawyerPages,
-    ...judgePages,
+    ...personPages,
     ...judgmentPages,
   ];
 }

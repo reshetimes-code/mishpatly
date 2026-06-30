@@ -80,9 +80,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         ? `${data.asDefendant} פסקי דין כנתבע/ת`
         : `${data.asPlaintiff} פסקי דין כתובע/ת`;
 
-  const title = `${decoded} - פסקי דין | כל פסקי הדין בעניין ${decoded} | משפטלי`;
+  const courtsStr = data.courts.slice(0, 3).join(', ');
+  const title = `${decoded} פסקי דין - ${data.total} פסקי דין בעניין ${decoded} | משפטלי`;
 
-  const description = `צפו בכל ${data.total} פסקי הדין הקשורים ל${decoded}. ${roleDesc}. חיפוש פסקי דין לפי שם - ${decoded} בית משפט. מאגר פסקי דין משפטלי - כל ההחלטות והפסיקות בעניין ${decoded}.`;
+  const description = `${decoded} - ${data.total} פסקי דין במאגר משפטלי. ${roleDesc}. ${courtsStr ? `בתי משפט: ${courtsStr}.` : ''} כל פסקי הדין, ההחלטות והפסיקות בעניין ${decoded}. חיפוש פסקי דין לפי שם באתר משפטלי - המאגר המשפטי המוביל בישראל.`;
 
   const keywords = [
     `פסקי דין ${decoded}`,
@@ -149,19 +150,41 @@ export default async function PersonPage({ params }: PageProps) {
   const { name } = await params;
   const data = await getPersonJudgments(name);
 
+  // Determine latest judgment date for dateModified
+  const latestDate = data.judgments.length > 0 && data.judgments[0].judgmentDate
+    ? new Date(data.judgments[0].judgmentDate).toISOString()
+    : new Date().toISOString();
+
+  // Collect categories for SEO
+  const categories = [...new Set(data.judgments.map(j => j.category).filter(Boolean))].slice(0, 5);
+
   // JSON-LD structured data
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
     name: `${data.name} - פסקי דין`,
+    headline: `${data.name} - ${data.total} פסקי דין`,
     description: `כל פסקי הדין הקשורים ל${data.name}`,
     url: `${SITE_URL}/person/${encodeURIComponent(data.name)}`,
+    inLanguage: 'he',
+    dateModified: latestDate,
+    datePublished: data.judgments.length > 0 && data.judgments[data.judgments.length - 1].judgmentDate
+      ? new Date(data.judgments[data.judgments.length - 1].judgmentDate).toISOString()
+      : latestDate,
     mainEntity: {
       '@type': 'Person',
       name: data.name,
       description: data.asJudge > 0
         ? `שופט/ת - ${data.total} פסקי דין`
         : `מעורב/ת ב-${data.total} פסקי דין`,
+    },
+    breadcrumb: {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'משפטלי', item: SITE_URL },
+        { '@type': 'ListItem', position: 2, name: 'חיפוש לפי שם', item: `${SITE_URL}/search` },
+        { '@type': 'ListItem', position: 3, name: data.name, item: `${SITE_URL}/person/${encodeURIComponent(data.name)}` },
+      ],
     },
     hasPart: data.judgments.slice(0, 20).map((j) => ({
       '@type': 'LegalCase',
@@ -178,6 +201,40 @@ export default async function PersonPage({ params }: PageProps) {
     },
   };
 
+  // FAQ schema for featured snippets
+  const faqJsonLd = data.total > 0 ? {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: `כמה פסקי דין יש על ${data.name}?`,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: `במאגר משפטלי נמצאו ${data.total} פסקי דין הקשורים ל${data.name}${data.asPlaintiff > 0 ? `, מתוכם ${data.asPlaintiff} כתובע/ת` : ''}${data.asDefendant > 0 ? ` ו-${data.asDefendant} כנתבע/ת` : ''}${data.asJudge > 0 ? `, ${data.asJudge} כשופט/ת` : ''}.`,
+        },
+      },
+      {
+        '@type': 'Question',
+        name: `באילו בתי משפט מופיע ${data.name}?`,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: data.courts.length > 0
+            ? `${data.name} מופיע/ה בפסקי דין מבתי המשפט: ${data.courts.join(', ')}.`
+            : `לא נמצאו פרטי בית משפט עבור ${data.name}.`,
+        },
+      },
+      ...(categories.length > 0 ? [{
+        '@type': 'Question',
+        name: `באילו תחומים משפטיים מעורב/ת ${data.name}?`,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: `פסקי הדין של ${data.name} נמצאים בתחומים: ${categories.join(', ')}.`,
+        },
+      }] : []),
+    ],
+  } : null;
+
   const roleLabel = data.asJudge > 0 ? 'שופט/ת' : data.asDefendant > data.asPlaintiff ? 'נתבע/ת' : 'תובע/ת';
 
   return (
@@ -186,6 +243,12 @@ export default async function PersonPage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      {faqJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        />
+      )}
 
       {/* Hero */}
       <div className="bg-gradient-to-l from-[#0B3C5D] to-[#1a5276] text-white py-10">
@@ -249,12 +312,22 @@ export default async function PersonPage({ params }: PageProps) {
               <h2 className="text-xl font-bold text-[#0B3C5D] mb-3">
                 פסקי דין בעניין {data.name}
               </h2>
-              <p className="text-gray-600 leading-relaxed">
-                {data.asJudge > 0
-                  ? `${data.name} הוא/היא שופט/ת אשר נתן/ה ${data.total} פסקי דין המופיעים במאגר משפטלי. פסקי הדין של ${data.name} ניתנו בבתי המשפט: ${data.courts.join(', ')}. להלן רשימת כל פסקי הדין של השופט/ת ${data.name}.`
-                  : `${data.name} מופיע/ה ב-${data.total} פסקי דין במאגר משפטלי${data.asPlaintiff > 0 ? `, מתוכם ${data.asPlaintiff} כתובע/ת` : ''}${data.asDefendant > 0 ? ` ו-${data.asDefendant} כנתבע/ת` : ''}. פסקי הדין הקשורים ל${data.name} ניתנו בבתי המשפט: ${data.courts.join(', ')}.`
-                }
-              </p>
+              <div className="text-gray-600 leading-relaxed space-y-3">
+                <p>
+                  {data.asJudge > 0
+                    ? `${data.name} הוא/היא שופט/ת אשר נתן/ה ${data.total} פסקי דין המופיעים במאגר משפטלי. פסקי הדין של ${data.name} ניתנו בבתי המשפט: ${data.courts.join(', ')}. להלן רשימת כל פסקי הדין של השופט/ת ${data.name}.`
+                    : `${data.name} מופיע/ה ב-${data.total} פסקי דין במאגר משפטלי${data.asPlaintiff > 0 ? `, מתוכם ${data.asPlaintiff} כתובע/ת` : ''}${data.asDefendant > 0 ? ` ו-${data.asDefendant} כנתבע/ת` : ''}. פסקי הדין הקשורים ל${data.name} ניתנו בבתי המשפט: ${data.courts.join(', ')}.`
+                  }
+                </p>
+                <p>
+                  בדף זה תוכלו לצפות בכל פסקי הדין, ההחלטות והפסיקות הקשורים ל{data.name}. המידע כולל את מספר התיק, שם בית המשפט, שמות השופטים, הצדדים להליך, תאריך מתן פסק הדין ותקציר ההחלטה.
+                  {categories.length > 0 ? ` פסקי הדין של ${data.name} עוסקים בתחומים המשפטיים: ${categories.join(', ')}.` : ''}
+                </p>
+                <p>
+                  משפטלי הוא מאגר פסקי הדין המוביל בישראל המאפשר חיפוש פסקי דין לפי שם.
+                  ניתן לחפש כל אדם או חברה ולמצוא את כל פסקי הדין הקשורים אליהם. המאגר מתעדכן מדי יום עם פסקי דין חדשים מכל בתי המשפט בישראל - בית משפט השלום, בית המשפט המחוזי, בית המשפט העליון, בית הדין לעבודה ובתי הדין הרבניים.
+                </p>
+              </div>
             </div>
 
             {/* Judgment list */}
