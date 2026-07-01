@@ -178,54 +178,28 @@ async function downloadAndParsePDF(folderDate: string, filename: string): Promis
 
     console.log(`[gov-scraper] ${filename}: Downloaded ${buffer.length} bytes, valid PDF`);
 
-    // Polyfill DOMMatrix for Node.js (required by pdfjs-dist v5 used in pdf-parse v2)
-    if (typeof globalThis.DOMMatrix === 'undefined') {
-      globalThis.DOMMatrix = class DOMMatrix {
-        m11=1;m12=0;m13=0;m14=0;m21=0;m22=1;m23=0;m24=0;
-        m31=0;m32=0;m33=1;m34=0;m41=0;m42=0;m43=0;m44=1;
-        a=1;b=0;c=0;d=1;e=0;f=0;
-        is2D=true;isIdentity=true;
-        constructor(init?: string | number[]) {
-          if (Array.isArray(init) && init.length === 6) {
-            [this.a,this.b,this.c,this.d,this.e,this.f] = init;
-            this.m11=this.a;this.m12=this.b;this.m21=this.c;this.m22=this.d;this.m41=this.e;this.m42=this.f;
-          }
-        }
-        inverse() { return new DOMMatrix(); }
-        multiply() { return new DOMMatrix(); }
-        translate() { return new DOMMatrix(); }
-        scale() { return new DOMMatrix(); }
-        rotate() { return new DOMMatrix(); }
-        transformPoint(p: any) { return p || {x:0,y:0,z:0,w:1}; }
-        toString() { return `matrix(${this.a},${this.b},${this.c},${this.d},${this.e},${this.f})`; }
-        static fromMatrix() { return new DOMMatrix(); }
-        static fromFloat32Array() { return new DOMMatrix(); }
-        static fromFloat64Array() { return new DOMMatrix(); }
-      } as unknown as typeof DOMMatrix;
-    }
+    // Use pdfjs-dist directly for text extraction (works in Node.js/Alpine without browser APIs)
+    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
 
-    // Dynamic import pdf-parse
-    const { PDFParse } = await import('pdf-parse');
-    const parser = new PDFParse({ data: new Uint8Array(buffer) });
-    // @ts-expect-error load() is marked private but needed for proper initialization
-    await parser.load();
+    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+    const doc = await loadingTask.promise;
+    const pageCount = doc.numPages;
 
-    // Parse full document text
-    const textResult = await parser.getText();
-    const fullText = textResult.text || '';
-    const pageCount = textResult.total || 1;
-
-    // Extract first page text
+    let fullText = '';
     let firstPageText = '';
-    if (textResult.pages && textResult.pages.length > 0) {
-      firstPageText = textResult.pages[0]?.text || '';
-    }
-    if (!firstPageText) {
-      firstPageText = fullText.slice(0, 2000);
+
+    for (let i = 1; i <= pageCount; i++) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .filter((item: any) => 'str' in item)
+        .map((item: any) => item.str)
+        .join(' ');
+      fullText += pageText + '\n';
+      if (i === 1) firstPageText = pageText;
     }
 
-    // Clean up parser resources
-    await parser.destroy().catch(() => {});
+    await doc.destroy();
 
     // If text is empty or just page separators, log it
     const cleanText = fullText.replace(/--\s*\d+\s*of\s*\d+\s*--/g, '').trim();
