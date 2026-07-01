@@ -178,28 +178,64 @@ async function downloadAndParsePDF(folderDate: string, filename: string): Promis
 
     console.log(`[gov-scraper] ${filename}: Downloaded ${buffer.length} bytes, valid PDF`);
 
-    // Use pdfjs-dist directly for text extraction (works in Node.js/Alpine without browser APIs)
-    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-
-    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
-    const doc = await loadingTask.promise;
-    const pageCount = doc.numPages;
-
+    // Extract text from PDF - try multiple approaches for Alpine compatibility
     let fullText = '';
     let firstPageText = '';
+    let pageCount = 1;
 
-    for (let i = 1; i <= pageCount; i++) {
-      const page = await doc.getPage(i);
-      const content = await page.getTextContent();
-      const pageText = content.items
-        .filter((item: any) => 'str' in item)
-        .map((item: any) => item.str)
-        .join(' ');
-      fullText += pageText + '\n';
-      if (i === 1) firstPageText = pageText;
+    // Approach 1: pdfjs-dist/legacy (works in most Node.js environments)
+    try {
+      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+      const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
+      pageCount = doc.numPages;
+      for (let i = 1; i <= pageCount; i++) {
+        const page = await doc.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .filter((item: any) => 'str' in item)
+          .map((item: any) => item.str)
+          .join(' ');
+        fullText += pageText + '\n';
+        if (i === 1) firstPageText = pageText;
+      }
+      await doc.destroy();
+    } catch (e1) {
+      console.warn(`[gov-scraper] pdfjs-dist/legacy failed for ${filename}: ${String(e1).slice(0, 100)}`);
+
+      // Approach 2: pdf-parse v2 with DOMMatrix polyfill
+      try {
+        if (typeof globalThis.DOMMatrix === 'undefined') {
+          globalThis.DOMMatrix = class DOMMatrix {
+            a=1;b=0;c=0;d=1;e=0;f=0;is2D=true;isIdentity=true;
+            m11=1;m12=0;m13=0;m14=0;m21=0;m22=1;m23=0;m24=0;
+            m31=0;m32=0;m33=1;m34=0;m41=0;m42=0;m43=0;m44=1;
+            constructor() {}
+            inverse() { return new DOMMatrix(); }
+            multiply() { return new DOMMatrix(); }
+            translate() { return new DOMMatrix(); }
+            scale() { return new DOMMatrix(); }
+            rotate() { return new DOMMatrix(); }
+            transformPoint(p: any) { return p || {x:0,y:0}; }
+            toString() { return 'matrix(1,0,0,1,0,0)'; }
+            static fromMatrix() { return new DOMMatrix(); }
+            static fromFloat32Array() { return new DOMMatrix(); }
+            static fromFloat64Array() { return new DOMMatrix(); }
+          } as unknown as typeof DOMMatrix;
+        }
+        const { PDFParse } = await import('pdf-parse');
+        const parser = new PDFParse({ data: new Uint8Array(buffer) });
+        // @ts-expect-error load() needed for init
+        await parser.load();
+        const textResult = await parser.getText();
+        fullText = textResult.text || '';
+        pageCount = textResult.total || 1;
+        firstPageText = textResult.pages?.[0]?.text || fullText.slice(0, 2000);
+        await parser.destroy().catch(() => {});
+      } catch (e2) {
+        console.error(`[gov-scraper] All PDF parsers failed for ${filename}: ${String(e2).slice(0, 200)}`);
+        return null;
+      }
     }
-
-    await doc.destroy();
 
     // If text is empty or just page separators, log it
     const cleanText = fullText.replace(/--\s*\d+\s*of\s*\d+\s*--/g, '').trim();
