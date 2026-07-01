@@ -29,7 +29,33 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Step 0: Check for court confidentiality orders (BEFORE importing new data)
+    // Step 0a: Clean up junk/promotional entries that are not real judgments
+    try {
+      const junkSlugs = [
+        'psakdin-רוצים-לדעת-איך-צפוי-התיק-להיגמר-בבית-משפט-פשוט-תשאלו',
+        'psakdin-חיפוש-עורך-דין-לפי-עיר',
+        'psakdin-עורכי-דין-לפי-תחום',
+        'psakdin-הלפי-x2013-בוט-משפטי-חכם-שלומד-מפסקי-דין',
+      ];
+      const junkDeleted = await prisma.judgment.deleteMany({
+        where: {
+          OR: [
+            { slug: { in: junkSlugs } },
+            { caseNumber: { startsWith: 'PD-' } },
+            { title: { contains: 'רוצים לדעת איך צפוי התיק' } },
+            { title: { contains: 'חיפוש עורך דין לפי עיר' } },
+            { title: { contains: 'עורכי דין לפי תחום' } },
+          ],
+        },
+      });
+      if (junkDeleted.count > 0) {
+        console.log(`[cron] Cleaned up ${junkDeleted.count} junk entries`);
+      }
+    } catch (e) {
+      console.error('[cron] Junk cleanup failed:', e);
+    }
+
+    // Step 0b: Check for court confidentiality orders (BEFORE importing new data)
     let confidentialResult = { processed: 0, unpublished: 0 };
     try {
       const { checkConfidentialCases } = await import('@/lib/confidential-monitor');

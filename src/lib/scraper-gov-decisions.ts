@@ -366,6 +366,14 @@ export async function scrapeGovDecisions(existingGovFileIds: Set<string>): Promi
             continue;
           }
 
+          // Skip promotional/junk PDFs that are not real judgments
+          const junkPatterns = ['רוצים לדעת איך צפוי', 'חיפוש עורך דין', 'עורכי דין לפי', 'בוט משפטי חכם'];
+          if (caseNumber.startsWith('PD-') || junkPatterns.some(p => parsed.firstPageText.includes(p) && !parsed.firstPageText.includes('פסק דין'))) {
+            console.log(`[gov-scraper] Skipping junk/promotional PDF: ${filename}`);
+            totalProcessed++;
+            continue;
+          }
+
           const parties = metadata.plaintiff && metadata.defendant
             ? `${metadata.plaintiff} נגד ${metadata.defendant}`
             : '';
