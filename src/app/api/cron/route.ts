@@ -103,6 +103,7 @@ export async function GET(request: NextRequest) {
             updatedItems: importResult.updatedItems,
             status: importResult.status,
             errors: importResult.errors.length,
+            errorDetails: importResult.errors.slice(0, 5),
           },
           seo: {
             urlsSubmitted: seoResult.indexing.newlySubmitted,
@@ -244,6 +245,7 @@ export async function GET(request: NextRequest) {
         updatedItems: importResult.updatedItems,
         status: importResult.status,
         errors: importResult.errors.length,
+        errorDetails: importResult.errors.slice(0, 5),
       },
       seo: {
         urlsSubmitted: seoResult.indexing.newlySubmitted,

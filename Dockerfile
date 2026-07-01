@@ -1,5 +1,8 @@
 FROM node:22-alpine AS base
 
+# Install system dependencies needed by pdfjs-dist (canvas/DOMMatrix)
+RUN apk add --no-cache build-base python3 cairo-dev pango-dev jpeg-dev giflib-dev librsvg-dev
+
 # Install dependencies
 FROM base AS deps
 WORKDIR /app
