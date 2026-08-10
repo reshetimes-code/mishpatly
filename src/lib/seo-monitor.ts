@@ -59,7 +59,10 @@ async function checkGoogleRanking(keyword: string): Promise<{ position: number |
         }
         return { position: null, url: null }; // valid response, just not found in results
       }
-    } catch { /* SerpApi error, fall through to Google CSE below */ }
+      console.error(`[SEO Monitor] SerpApi non-OK status ${res.status} for "${keyword}": ${(await res.text()).slice(0, 300)}`);
+    } catch (e) {
+      console.error(`[SEO Monitor] SerpApi fetch error for "${keyword}":`, String(e).slice(0, 300));
+    }
   }
 
   const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
