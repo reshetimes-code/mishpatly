@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     const changes = rankings.filter(r => r.change !== 'same');
 
     return NextResponse.json({
+      BUILD_MARKER: 'DEBUG-MARKER-4471-serpapi-' + (process.env.SERPAPI_KEY ? 'has-key-len-' + process.env.SERPAPI_KEY.length : 'NO-KEY'),
       message: `SEO Monitor: ${ranked.length}/${rankings.length} keywords ranked, ${changes.length} changes`,
       timestamp: new Date().toISOString(),
       ranked: ranked.length,
