@@ -88,6 +88,21 @@ export async function PUT(
 
     const updated = await updateLawyer(lawyerId, updateData);
 
+    // When admin activates a lawyer → immediately submit to Google & Bing for indexing
+    if (isAdmin && body.isActive === true && !lawyer.isActive) {
+      try {
+        const { submitUrlsToGoogle, submitUrlsViaIndexNow } = await import('@/lib/seo-engine');
+        const lawyerUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://mishpatly.co.il'}/lawyers/${updated.slug}`;
+        await Promise.allSettled([
+          submitUrlsToGoogle([lawyerUrl]),
+          submitUrlsViaIndexNow([lawyerUrl]),
+        ]);
+        console.log(`[lawyers-api] Immediately indexed new active lawyer: ${lawyerUrl}`);
+      } catch (e) {
+        console.error('[lawyers-api] Failed to index new lawyer:', e);
+      }
+    }
+
     return NextResponse.json({ success: true, lawyer: updated });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

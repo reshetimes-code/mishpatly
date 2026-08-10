@@ -61,7 +61,29 @@ export async function runAllScrapers(): Promise<ScrapeResult[]> {
     });
     const existingIds = new Set(existing.map(j => j.govFileId).filter(Boolean) as string[]);
 
-    const { items: govItems, errors } = await scrapeGovDecisions(existingIds);
+    // Get confidential case numbers from monitor logs (not_found = court ordered but not yet in DB)
+    // These must NEVER be imported
+    const confidentialLogs = await prisma.importLog.findMany({
+      where: { source: 'confidential-monitor' },
+      select: { sourceName: true },
+    });
+    const confidentialCaseNumbers = new Set(confidentialLogs.map(l => l.sourceName).filter(Boolean));
+
+    // Also get HIDDEN cases from DB (already imported but then hidden by court order)
+    const hiddenCases = await prisma.judgment.findMany({
+      where: { status: 'HIDDEN' },
+      select: { caseNumber: true },
+    });
+    hiddenCases.forEach(j => confidentialCaseNumbers.add(j.caseNumber));
+
+    const { items: govItems, errors } = await scrapeGovDecisions(existingIds, confidentialCaseNumbers);
+
+    // A judgment is only worth publishing once it has real party names.
+    // Some PDFs extract with garbled/reversed text (Hebrew bidi issue in the
+    // parser) and plaintiff/defendant end up empty - those must stay
+    // unpublished (PENDING_REVIEW) until AI enrichment fills them in, since
+    // the whole point of the site is being found by name.
+    const hasRealName = (name: string) => !!name && name.trim().length > 0 && name.trim() !== 'לא ידוע';
 
     // Map GOV items to the standard format
     const items: JudgmentInput[] = govItems.map(item => ({
@@ -81,7 +103,7 @@ export async function runAllScrapers(): Promise<ScrapeResult[]> {
       pdfUrl: item.pdfUrl,
       sourceName: item.sourceName,
       category: item.category,
-      status: 'PUBLISHED',
+      status: (hasRealName(item.plaintiff) || hasRealName(item.defendant)) ? 'PUBLISHED' : 'PENDING_REVIEW',
       _govFileId: item.govFileId,
       _govFolderDate: item.govFolderDate,
       _pdfPageCount: item.pdfPageCount,

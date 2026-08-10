@@ -169,19 +169,25 @@ export async function addJudgment(data: Omit<StoredJudgment, 'id' | 'createdAt' 
  * Validate that a judgment looks like real legal data, not scraped junk.
  * Returns null if valid, or a rejection reason string.
  */
-function validateJudgment(item: { caseNumber: string; title: string; courtName: string; summary?: string; fullText?: string }): string | null {
+function validateJudgment(item: { caseNumber: string; title: string; courtName: string; summary?: string; fullText?: string; plaintiff?: string; defendant?: string }): string | null {
   // Case number must be at least 3 chars and not look like a test ID
   if (!item.caseNumber || item.caseNumber.length < 3) return 'missing/short caseNumber';
   if (/^PD-\d+$/i.test(item.caseNumber)) return 'test case number (PD-*)';
   if (/^אחרי \d+$/.test(item.caseNumber)) return 'test case number';
 
+  // Case number must contain digits (real format: 12345-01-25)
+  if (!/\d{3,}/.test(item.caseNumber)) return 'invalid case number (no digits)';
+
   // Title must be at least 5 chars and not be navigation/promo text
   if (!item.title || item.title.length < 5) return 'missing/short title';
-  const junkTitles = ['חיפוש עורך דין', 'עורכי דין לפי', 'רוצים לדעת', 'בוט משפטי', 'פשוט תשאלו'];
+  const junkTitles = [
+    'חיפוש עורך דין', 'עורכי דין לפי', 'רוצים לדעת', 'בוט משפטי', 'פשוט תשאלו',
+    'הלפי', 'חיפוש לפי עיר', 'לפי תחום', 'מאמר', 'טיפ משפטי', 'מדריך',
+  ];
   if (junkTitles.some(junk => item.title.includes(junk))) return 'junk title (website text)';
 
-  // Court name must be more specific than just "בית משפט"
-  if (item.courtName && /^בית משפט\s*\d*$/.test(item.courtName.trim())) return 'generic court name';
+  // Prefer entries with real party names, but don't block GOV.IL imports
+  // (AI enrichment will fix names later if PDF text was garbled)
 
   return null;
 }

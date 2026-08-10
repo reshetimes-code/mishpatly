@@ -18,8 +18,8 @@ export async function generateMetadata({
   if (!lawyer) return { title: 'עורך דין לא נמצא | משפטלי' };
 
   const specs = lawyer.specializations.join(', ');
-  const title = `עו"ד ${lawyer.fullName} - ${specs || 'עורך דין'} | ${lawyer.city} | משפטלי`;
-  const description = `עו"ד ${lawyer.fullName} - עורך דין ${specs ? `המתמחה ב${specs}` : ''} ב${lawyer.city}. ${lawyer.yearsExperience > 0 ? `${lawyer.yearsExperience} שנות ניסיון. ` : ''}דירוג ${lawyer.rating}/5 (${lawyer.reviewCount} המלצות). צפו בפרופיל המלא, חוות דעת לקוחות ופרטי התקשרות.`;
+  const title = `עו"ד ${lawyer.fullName} - ${specs || 'עורך דין'} | ${lawyer.city} | פורטל עורכי דין משפטלי`;
+  const description = `עו"ד ${lawyer.fullName} - עורך דין ${specs ? `המתמחה ב${specs}` : ''} ב${lawyer.city}. ${lawyer.yearsExperience > 0 ? `${lawyer.yearsExperience} שנות ניסיון. ` : ''}${lawyer.rating > 0 ? `דירוג ${lawyer.rating}/5 (${lawyer.reviewCount} המלצות). ` : ''}פרופיל מלא, חוות דעת לקוחות, טלפון וWhatsApp ליצירת קשר ישירה. ${lawyer.courtDistrict ? `פעיל במחוז ${lawyer.courtDistrict}. ` : ''}משפטלי - פורטל עורכי הדין של ישראל.`;
 
   return {
     title,
@@ -59,6 +59,116 @@ export async function generateMetadata({
   };
 }
 
+/** Build a rich, unique SEO paragraph for the lawyer profile (200-400 words). */
+function buildLawyerSeoContent(lawyer: NonNullable<Awaited<ReturnType<typeof getLawyerBySlug>>>) {
+  const specs = lawyer.specializations;
+  const name = lawyer.fullName;
+  const city = lawyer.city;
+  const years = lawyer.yearsExperience;
+  const district = lawyer.courtDistrict;
+  const rating = lawyer.rating;
+  const reviewCount = lawyer.reviewCount;
+  const education = lawyer.education;
+
+  const specText = specs.length > 0 ? specs.join(', ') : 'משפט כללי';
+  const specListText = specs.length > 1
+    ? `${specs.slice(0, -1).join(', ')} ו${specs[specs.length - 1]}`
+    : specText;
+
+  const paragraphs: string[] = [];
+
+  // Intro paragraph
+  paragraphs.push(
+    `עו"ד ${name} הוא עורך דין ב${city} המתמחה בתחומי ${specListText}. ` +
+    (years > 0
+      ? `עם ניסיון מקצועי של ${years} שנים בעולם המשפט, עו"ד ${name} מעניק ייצוג משפטי מקצועי ומסור ללקוחותיו. `
+      : `עו"ד ${name} מעניק ייצוג משפטי מקצועי ומסור ללקוחותיו. `) +
+    (district ? `המשרד פעיל במחוז ${district} ומייצג לקוחות בבתי המשפט באזור. ` : '') +
+    (education ? `${name} הוא בוגר ${education}. ` : '')
+  );
+
+  // Specializations detail paragraph
+  if (specs.length > 0) {
+    const specDetails: Record<string, string> = {
+      'דיני משפחה': 'ליווי בהליכי גירושין, חלוקת רכוש, משמורת ילדים, מזונות והסכמי ממון',
+      'דיני עבודה': 'ייצוג עובדים ומעסיקים בסכסוכי עבודה, פיטורין שלא כדין, הפליה ותנאי העסקה',
+      'נדל"ן': 'ליווי עסקאות מקרקעין, רכישת דירות, הסכמי שכירות וסכסוכי שכנים',
+      'פלילי': 'ייצוג חשודים ונאשמים בהליכים פליליים, חקירות משטרה, הסדרי טיעון וערעורים',
+      'נזיקין': 'תביעות נזקי גוף, תאונות דרכים, תאונות עבודה ורשלנות רפואית',
+      'מסחרי': 'ליווי עסקים, הסכמים מסחריים, דיני חברות והקמת תאגידים',
+      'ביטוח לאומי': 'תביעות נכות, גמלאות, דמי אבטלה ומול המוסד לביטוח לאומי',
+      'צוואות וירושות': 'עריכת צוואות, צווי ירושה, התנגדויות לצוואות וניהול עיזבונות',
+      'הוצאה לפועל': 'ייצוג בהליכי הוצאה לפועל, עיקולים, פשיטות רגל והסדרי חובות',
+      'מקרקעין': 'רישום בטאבו, תכנון ובנייה, היתרים ועסקאות נדל"ן',
+      'אזרחי': 'תביעות אזרחיות, סכסוכים כספיים, הפרת חוזים וייצוג בבתי משפט שלום ומחוזי',
+      'תעבורה': 'ייצוג בעבירות תנועה, שלילת רישיון, תאונות דרכים ודו"חות תנועה',
+      'מיסוי': 'תכנון מס, ייצוג מול רשות המיסים, מס הכנסה, מע"מ ומיסוי מקרקעין',
+      'הגירה': 'ויזות עבודה, אשרות שהייה, הסדרת מעמד ואזרחות',
+      'קניין רוחני': 'רישום פטנטים, סימני מסחר, זכויות יוצרים והגנה על קניין רוחני',
+      'צרכנות': 'תביעות צרכניות, הטעיית צרכנים, ביטול עסקאות וייצוגיות',
+    };
+
+    const matched = specs
+      .map(s => {
+        const key = Object.keys(specDetails).find(k => s.includes(k) || k.includes(s));
+        return key ? specDetails[key] : null;
+      })
+      .filter(Boolean);
+
+    if (matched.length > 0) {
+      paragraphs.push(
+        `תחומי הפעילות של המשרד כוללים: ${matched.join('; ')}. ` +
+        `עו"ד ${name} מלווה את לקוחותיו לאורך כל ההליך המשפטי, החל מייעוץ ראשוני וניתוח המקרה ועד לייצוג בבית המשפט והשגת התוצאה הטובה ביותר.`
+      );
+    }
+  }
+
+  // Rating / trust paragraph
+  if (rating > 0 && reviewCount > 0) {
+    paragraphs.push(
+      `עו"ד ${name} זכה לדירוג של ${rating} מתוך 5 כוכבים על סמך ${reviewCount} חוות דעת של לקוחות ממליצים במשפטלי. ` +
+      `שביעות הרצון הגבוהה של הלקוחות משקפת את המקצועיות, האמינות והיחס האישי שמעניק המשרד.`
+    );
+  }
+
+  // CTA paragraph
+  paragraphs.push(
+    `לייעוץ משפטי ראשוני או לקביעת פגישה עם עו"ד ${name} ב${city}, ניתן ליצור קשר ישירות דרך פרטי ההתקשרות המופיעים בעמוד זה. ` +
+    `משפטלי - פורטל עורכי הדין המוביל בישראל, מאפשר לכם למצוא את עורך הדין המתאים לכם לפי תחום התמחות, אזור ודירוג לקוחות.`
+  );
+
+  // FAQ items
+  const faqs = [
+    {
+      q: `באילו תחומים מתמחה עו"ד ${name}?`,
+      a: `עו"ד ${name} מתמחה בתחומי ${specListText}${district ? ` ופעיל במחוז ${district}` : ''}.`,
+    },
+    {
+      q: `איפה נמצא המשרד של עו"ד ${name}?`,
+      a: `המשרד של עו"ד ${name} נמצא ב${city}${lawyer.address ? `, ${lawyer.address}` : ''}.`,
+    },
+    {
+      q: `מה הדירוג של עו"ד ${name}?`,
+      a: rating > 0
+        ? `עו"ד ${name} מדורג ${rating}/5 על סמך ${reviewCount} חוות דעת במשפטלי.`
+        : `עו"ד ${name} רשום בפורטל משפטלי. ניתן להשאיר חוות דעת לאחר קבלת שירות.`,
+    },
+    {
+      q: `איך יוצרים קשר עם עו"ד ${name}?`,
+      a: `ניתן ליצור קשר עם עו"ד ${name} בטלפון${lawyer.phone ? ` ${lawyer.phone}` : ''}, בוואטסאפ או באימייל דרך עמוד הפרופיל במשפטלי.`,
+    },
+  ];
+
+  if (years > 0) {
+    faqs.push({
+      q: `כמה שנות ניסיון יש לעו"ד ${name}?`,
+      a: `לעו"ד ${name} ${years} שנות ניסיון בתחומי ${specListText}.`,
+    });
+  }
+
+  return { paragraphs, faqs };
+}
+
 function StarRating({ rating, size = 'text-lg' }: { rating: number; size?: string }) {
   return (
     <span className={size}>
@@ -89,6 +199,7 @@ export default async function LawyerProfilePage({
   }
 
   const reviews = await getReviewsByLawyerId(lawyer.id);
+  const seoContent = buildLawyerSeoContent(lawyer);
 
   // JSON-LD structured data for lawyer profile
   const jsonLd = {
@@ -137,6 +248,18 @@ export default async function LawyerProfilePage({
           { "@type": "ListItem", "position": 2, "name": "פורטל עורכי דין", "item": `${SITE_URL}/lawyers` },
           { "@type": "ListItem", "position": 3, "name": lawyer.fullName, "item": `${SITE_URL}/lawyers/${slug}` },
         ],
+      },
+      // FAQ schema for rich snippets
+      {
+        "@type": "FAQPage",
+        "mainEntity": seoContent.faqs.map((faq) => ({
+          "@type": "Question",
+          "name": faq.q,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": faq.a,
+          },
+        })),
       },
       // Individual review schema for approved reviews
       ...(reviews.length > 0
@@ -357,6 +480,34 @@ export default async function LawyerProfilePage({
                 </a>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== SEO Content Section ===== */}
+      <div className="max-w-5xl mx-auto px-4 pb-8 sm:px-6">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-bold text-primary mb-4">
+            עו&quot;ד {lawyer.fullName} - {lawyer.specializations.join(', ') || 'עורך דין'} ב{lawyer.city}
+          </h2>
+          {seoContent.paragraphs.map((p, i) => (
+            <p key={i} className="text-sm text-gray-700 leading-relaxed mb-3">{p}</p>
+          ))}
+        </div>
+
+        {/* FAQ Section */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm mt-6">
+          <h2 className="text-xl font-bold text-primary mb-4">שאלות נפוצות על עו&quot;ד {lawyer.fullName}</h2>
+          <div className="space-y-4">
+            {seoContent.faqs.map((faq, i) => (
+              <details key={i} className="group border-b border-gray-100 pb-3 last:border-0">
+                <summary className="cursor-pointer text-sm font-semibold text-primary hover:text-accent transition-colors list-none flex items-center justify-between">
+                  <span>{faq.q}</span>
+                  <span className="text-gray-400 group-open:rotate-180 transition-transform mr-2">&#9660;</span>
+                </summary>
+                <p className="text-sm text-gray-700 leading-relaxed mt-2 pr-1">{faq.a}</p>
+              </details>
+            ))}
           </div>
         </div>
       </div>

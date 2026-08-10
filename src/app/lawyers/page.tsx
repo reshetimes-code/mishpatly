@@ -5,9 +5,28 @@ import { searchLawyers, getAllLawyers, SPECIALIZATIONS, CITIES } from '@/lib/law
 const SITE_URL = 'https://mishpatly.co.il';
 
 export const metadata: Metadata = {
-  title: 'פורטל עורכי דין | מצאו עורך דין מתאים | משפטלי',
-  description: 'פורטל עורכי הדין של משפטלי - מצאו עורך דין מתאים לפי תחום התמחות, עיר ודירוג לקוחות. עורכי דין בתל אביב, ירושלים, חיפה, באר שבע ועוד. חוות דעת אמיתיות ופרטי התקשרות.',
-  keywords: ['עורכי דין', 'עורך דין', 'פורטל עורכי דין', 'חיפוש עורך דין', 'עורך דין תל אביב', 'עורך דין ירושלים', 'עורך דין חיפה', 'עורך דין פלילי', 'עורך דין משפחה', 'עורך דין נזיקין', 'עורך דין עבודה', 'משפטלי'],
+  title: 'פורטל עורכי דין - חיפוש עורך דין לפי תחום ועיר | משפטלי',
+  description: 'פורטל עורכי הדין המוביל בישראל - מצאו עורך דין מומלץ לפי תחום התמחות ועיר. עורכי דין פלילי, משפחה, נזיקין, עבודה, מקרקעין, הוצאה לפועל. תל אביב, ירושלים, חיפה, באר שבע. דירוג, חוות דעת, טלפון וWhatsApp.',
+  keywords: [
+    'עורכי דין', 'עורך דין', 'פורטל עורכי דין', 'חיפוש עורך דין',
+    'עורך דין מומלץ', 'אינדקס עורכי דין', 'מדריך עורכי דין',
+    // תחומים
+    'עורך דין פלילי', 'עורך דין משפחה', 'עורך דין נזיקין', 'עורך דין עבודה',
+    'עורך דין מקרקעין', 'עורך דין הוצאה לפועל', 'עורך דין ביטוח לאומי',
+    'עורך דין תעבורה', 'עורך דין מסחרי', 'עורך דין חוזים', 'עורך דין ירושות',
+    'עורך דין גירושין', 'עורך דין חדלות פירעון', 'עורך דין צוואות',
+    'עורך דין נדלן', 'עורך דין ביטוח', 'עורך דין אזרחי', 'עורך דין מנהלי',
+    // ערים
+    'עורך דין תל אביב', 'עורך דין ירושלים', 'עורך דין חיפה', 'עורך דין באר שבע',
+    'עורך דין נתניה', 'עורך דין ראשון לציון', 'עורך דין פתח תקווה', 'עורך דין הרצליה',
+    'עורך דין רמת גן', 'עורך דין אשדוד', 'עורך דין כפר סבא', 'עורך דין רחובות',
+    'עורך דין נצרת', 'עורך דין עכו', 'עורך דין קריות',
+    // שילובים חמים
+    'עורך דין פלילי תל אביב', 'עורך דין משפחה חיפה', 'עורך דין נזיקין ירושלים',
+    'עורך דין עבודה באר שבע', 'עורך דין גירושין תל אביב', 'עורך דין מקרקעין חיפה',
+    // מתחרים
+    'משפטלי', 'משפט לי', 'פורטל עורכי דין ישראל',
+  ],
   alternates: { canonical: `${SITE_URL}/lawyers` },
   openGraph: {
     title: 'פורטל עורכי דין | משפטלי',
@@ -58,9 +77,15 @@ export default async function LawyersPage({
     sortBy,
   });
 
-  const allLawyers = await getAllLawyers();
-  const usedCities = Array.from(new Set(allLawyers.map((l) => l.city).filter(Boolean))).sort();
-  const usedSpecs = Array.from(new Set(allLawyers.flatMap((l) => l.specializations).filter(Boolean))).sort();
+  // Only fetch distinct cities and specializations - NOT all lawyer data (was 4.8MB!)
+  const { prisma } = await import('@/lib/db');
+  const [cityRows, specRows] = await Promise.all([
+    prisma.lawyer.findMany({ where: { isActive: true, city: { not: '' } }, select: { city: true }, distinct: ['city'] }),
+    prisma.lawyer.findMany({ where: { isActive: true }, select: { specializations: true } }),
+  ]);
+  const usedCities = cityRows.map(r => r.city!).filter(Boolean).sort();
+  const usedSpecs = Array.from(new Set(specRows.flatMap(r => r.specializations).filter(Boolean))).sort();
+  const allLawyersCount = await prisma.lawyer.count({ where: { isActive: true } });
 
   const safePage = Math.min(currentPage, Math.max(1, totalPages));
 
@@ -211,10 +236,10 @@ export default async function LawyersPage({
             {lawyers.length === 0 ? (
               <div className="rounded-lg border border-gray-200 bg-white px-6 py-16 text-center">
                 <p className="text-lg font-semibold text-gray-500">
-                  {allLawyers.length === 0 ? 'עדיין אין עורכי דין רשומים' : 'לא נמצאו תוצאות'}
+                  {allLawyersCount === 0 ? 'עדיין אין עורכי דין רשומים' : 'לא נמצאו תוצאות'}
                 </p>
                 <p className="mt-2 text-sm text-gray-400">
-                  {allLawyers.length === 0 ? (
+                  {allLawyersCount === 0 ? (
                     <Link href="/lawyers/register" className="text-accent hover:underline">
                       היו הראשונים להירשם לפורטל
                     </Link>
@@ -235,7 +260,7 @@ export default async function LawyersPage({
                     <div className="relative">
                       <div className="h-40 bg-gradient-to-bl from-[#0B3C5D] via-[#072a42] to-[#0B3C5D] overflow-hidden">
                         {l.coverImage ? (
-                          <img src={l.coverImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                          <img src={l.coverImage} alt={`עורך דין ${l.fullName}`} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
                         ) : (
                           <div className="absolute inset-0 opacity-20 bg-[url('/court-bg.jpg')] bg-cover bg-center" />
                         )}
@@ -250,7 +275,8 @@ export default async function LawyersPage({
                       {l.profileImage ? (
                         <img
                           src={l.profileImage}
-                          alt={l.fullName}
+                          alt={`עורך דין ${l.fullName} - ${l.city || ''} - ${l.specializations?.slice(0,2).join(', ') || ''}`}
+                          loading="lazy"
                           className="absolute -bottom-8 right-5 w-16 h-16 rounded-full object-cover border-4 border-white shadow-md z-10"
                         />
                       ) : (
@@ -329,6 +355,85 @@ export default async function LawyersPage({
           </section>
         </div>
       </div>
+
+      {/* SEO Content Section - beats din.co.il, psakdin, ilaw, mishpati */}
+      <section className="bg-white border-t border-gray-200 px-4 py-12 sm:px-6">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl font-bold text-[#0B3C5D] mb-4">חיפוש עורך דין מומלץ בישראל</h2>
+          <div className="text-gray-600 leading-relaxed space-y-3 text-sm">
+            <p>
+              <strong>פורטל עורכי הדין של משפטלי</strong> מאפשר לכם למצוא עורך דין מומלץ בכל תחום ובכל עיר בישראל.
+              בין אם אתם מחפשים <Link href="/lawyers?specialization=פלילי" className="text-[#0B3C5D] underline hover:text-[#C9A84C]">עורך דין פלילי</Link>,
+              <Link href="/lawyers?specialization=דיני משפחה" className="text-[#0B3C5D] underline hover:text-[#C9A84C]"> עורך דין משפחה</Link>,
+              <Link href="/lawyers?specialization=נזיקין" className="text-[#0B3C5D] underline hover:text-[#C9A84C]"> עורך דין נזיקין</Link>,
+              <Link href="/lawyers?specialization=דיני עבודה" className="text-[#0B3C5D] underline hover:text-[#C9A84C]"> עורך דין עבודה</Link> או
+              <Link href="/lawyers?specialization=מקרקעין" className="text-[#0B3C5D] underline hover:text-[#C9A84C]"> עורך דין מקרקעין</Link> -
+              הפורטל שלנו מציג עורכי דין מאומתים עם דירוג לקוחות, חוות דעת ופרטי התקשרות ישירים.
+            </p>
+            <p>
+              כל עורך דין בפורטל מציג את תחומי ההתמחות, שנות הניסיון, השכלה, ואזור הפעילות.
+              ניתן לסנן לפי עיר - <Link href="/lawyers?city=תל אביב" className="text-[#0B3C5D] underline hover:text-[#C9A84C]">עורכי דין בתל אביב</Link>,
+              <Link href="/lawyers?city=ירושלים" className="text-[#0B3C5D] underline hover:text-[#C9A84C]"> עורכי דין בירושלים</Link>,
+              <Link href="/lawyers?city=חיפה" className="text-[#0B3C5D] underline hover:text-[#C9A84C]"> עורכי דין בחיפה</Link>,
+              <Link href="/lawyers?city=באר שבע" className="text-[#0B3C5D] underline hover:text-[#C9A84C]"> עורכי דין בבאר שבע</Link> ועוד.
+            </p>
+            <p>
+              משפטלי שונה מפורטלים אחרים - אצלנו תמצאו גם את <Link href="/search" className="text-[#0B3C5D] underline hover:text-[#C9A84C]">מאגר פסקי הדין</Link> המקיף ביותר בישראל,
+              כך שתוכלו לבדוק את הרקע המשפטי של עורך הדין, לראות באילו תיקים הוא ייצג ומהם התוצאות.
+              שילוב ייחודי של פורטל עורכי דין עם מאגר פסיקה - רק במשפטלי.
+            </p>
+          </div>
+
+          <h3 className="text-lg font-bold text-[#0B3C5D] mt-8 mb-3">חיפוש עורך דין לפי תחום</h3>
+          <div className="flex flex-wrap gap-2 mb-6">
+            {[
+              'פלילי', 'דיני משפחה', 'נזיקין', 'דיני עבודה', 'מקרקעין',
+              'הוצאה לפועל', 'ביטוח לאומי', 'תעבורה', 'מסחרי', 'חוזים',
+              'צוואות וירושות', 'גירושין', 'חדלות פירעון', 'ביטוח', 'אזרחי',
+              'מנהלי', 'נדל"ן', 'קניין רוחני', 'מיסוי', 'צרכנות',
+            ].map((spec) => (
+              <Link key={spec} href={`/lawyers?specialization=${encodeURIComponent(spec)}`}
+                className="bg-gray-100 hover:bg-[#0B3C5D] hover:text-white text-gray-700 px-3 py-1.5 rounded-lg text-xs transition-colors">
+                עורך דין {spec}
+              </Link>
+            ))}
+          </div>
+
+          <h3 className="text-lg font-bold text-[#0B3C5D] mt-6 mb-3">חיפוש עורך דין לפי עיר</h3>
+          <div className="flex flex-wrap gap-2 mb-6">
+            {[
+              'תל אביב', 'ירושלים', 'חיפה', 'באר שבע', 'נתניה', 'ראשון לציון',
+              'פתח תקווה', 'הרצליה', 'רמת גן', 'אשדוד', 'כפר סבא', 'רחובות',
+              'נצרת', 'עכו', 'קריית אתא', 'אשקלון', 'רמלה', 'לוד',
+            ].map((city) => (
+              <Link key={city} href={`/lawyers?city=${encodeURIComponent(city)}`}
+                className="bg-gray-100 hover:bg-[#0B3C5D] hover:text-white text-gray-700 px-3 py-1.5 rounded-lg text-xs transition-colors">
+                עורך דין {city}
+              </Link>
+            ))}
+          </div>
+
+          <h3 className="text-lg font-bold text-[#0B3C5D] mt-6 mb-3">קישורים שימושיים</h3>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { href: '/search', label: 'מאגר פסקי דין' },
+              { href: '/search/bdikat-reka-mishpati', label: 'בדיקת רקע משפטי' },
+              { href: '/search/hipus-tik-lefi-shem', label: 'חיפוש תיק לפי שם' },
+              { href: '/lawyers/register', label: 'הרשמה לפורטל עורכי דין' },
+              { href: '/search/hasarat-azkurim', label: 'הסרת אזכורים משפטיים' },
+              { href: '/articles', label: 'מאמרים משפטיים' },
+              { href: '/legal-help', label: 'ייעוץ משפטי חינם' },
+              { href: '/rating/lawyers', label: 'דירוג עורכי דין' },
+              { href: '/rating/judges', label: 'דירוג שופטים' },
+            ].map((link) => (
+              <Link key={link.href} href={link.href}
+                className="bg-blue-50 hover:bg-[#0B3C5D] hover:text-white text-[#0B3C5D] px-3 py-1.5 rounded-lg text-xs transition-colors">
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

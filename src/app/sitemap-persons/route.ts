@@ -1,56 +1,66 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 const BASE_URL = 'https://mishpatly.co.il';
-const PAGE_SIZE = 49000;
 
 /**
- * Sitemap for all person/judge pages — split by ?page=0,1,2,...
- * /sitemap-persons       → page 0 (first 49K)
- * /sitemap-persons?page=1 → page 1 (next 49K)
+ * Sitemap for all person pages (judges, plaintiffs, defendants).
+ * Served at /sitemap-persons (XML format)
  */
-export async function GET(request: NextRequest) {
-  const page = parseInt(new URL(request.url).searchParams.get('page') || '0', 10);
-  const skip = page * PAGE_SIZE;
-
+export async function GET() {
   try {
-    // Collect distinct person names: judges + plaintiffs + defendants
+    // Get latest judgment date per person name for lastmod
     const [judges, plaintiffs, defendants] = await Promise.all([
       prisma.judgment.findMany({
         where: { status: 'PUBLISHED', judge: { not: null } },
-        select: { judge: true },
+        select: { judge: true, updatedAt: true },
         distinct: ['judge'],
+        orderBy: { updatedAt: 'desc' },
       }),
       prisma.judgment.findMany({
         where: { status: 'PUBLISHED', plaintiff: { not: null } },
-        select: { plaintiff: true },
+        select: { plaintiff: true, updatedAt: true },
         distinct: ['plaintiff'],
+        orderBy: { updatedAt: 'desc' },
       }),
       prisma.judgment.findMany({
         where: { status: 'PUBLISHED', defendant: { not: null } },
-        select: { defendant: true },
+        select: { defendant: true, updatedAt: true },
         distinct: ['defendant'],
+        orderBy: { updatedAt: 'desc' },
       }),
     ]);
 
-    const nameSet = new Set<string>();
+    const nameMap = new Map<string, Date>();
     for (const j of judges) {
-      if (j.judge && j.judge.length > 1 && j.judge !== 'לא ידוע') nameSet.add(j.judge.trim());
+      if (j.judge && j.judge.length > 1 && j.judge !== 'לא ידוע') {
+        const name = j.judge.trim();
+        const existing = nameMap.get(name);
+        if (!existing || j.updatedAt > existing) nameMap.set(name, j.updatedAt);
+      }
     }
     for (const p of plaintiffs) {
-      if (p.plaintiff && p.plaintiff.length > 1 && p.plaintiff !== 'לא ידוע') nameSet.add(p.plaintiff.trim());
+      if (p.plaintiff && p.plaintiff.length > 1 && p.plaintiff !== 'לא ידוע') {
+        const name = p.plaintiff.trim();
+        const existing = nameMap.get(name);
+        if (!existing || p.updatedAt > existing) nameMap.set(name, p.updatedAt);
+      }
     }
     for (const d of defendants) {
-      if (d.defendant && d.defendant.length > 1 && d.defendant !== 'לא ידוע') nameSet.add(d.defendant.trim());
+      if (d.defendant && d.defendant.length > 1 && d.defendant !== 'לא ידוע') {
+        const name = d.defendant.trim();
+        const existing = nameMap.get(name);
+        if (!existing || d.updatedAt > existing) nameMap.set(name, d.updatedAt);
+      }
     }
 
-    const allNames = Array.from(nameSet);
-    const pageNames = allNames.slice(skip, skip + PAGE_SIZE);
+    const entries = Array.from(nameMap.entries()).slice(0, 49000);
 
-    const urls = pageNames.map(name => `  <url>
+    const urls = entries.map(([name, lastmod]) => `  <url>
     <loc>${BASE_URL}/person/${encodeURIComponent(name)}</loc>
+    <lastmod>${new Date(lastmod).toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>`).join('\n');
@@ -61,10 +71,7 @@ ${urls}
 </urlset>`;
 
     return new NextResponse(xml, {
-      headers: {
-        'Content-Type': 'application/xml',
-        'Cache-Control': 'public, max-age=3600',
-      },
+      headers: { 'Content-Type': 'application/xml' },
     });
   } catch {
     return new NextResponse(

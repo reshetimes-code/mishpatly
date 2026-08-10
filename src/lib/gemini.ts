@@ -53,7 +53,7 @@ export async function analyzeJudgment(
     return null;
   }
 
-  const textToAnalyze = fullText.length > 8000 ? fullText.slice(0, 8000) : fullText;
+  const textToAnalyze = fullText.length > 3000 ? fullText.slice(0, 3000) : fullText; // Reduced from 8000 to control costs
 
   const prompt = `אתה מנתח מסמכים משפטיים ישראליים. נתח את פסק הדין הבא וחלץ את המידע הבא בפורמט JSON בלבד.
 

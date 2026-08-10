@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       website: body.website || '',
       whatsapp: body.whatsapp || '',
       passwordHash,
-      isActive: true,
+      isActive: false,
     });
 
     const token = generateLawyerToken(lawyer.id);

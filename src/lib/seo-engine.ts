@@ -12,7 +12,11 @@ import { getAllJudgmentsFromDB, type StoredJudgment } from './judgment-store';
 import { google } from 'googleapis';
 
 const SITE_URL = 'https://mishpatly.co.il';
-const SITEMAP_URL = `${SITE_URL}/sitemap.xml`;
+const SITEMAP_URLS = [
+  `${SITE_URL}/sitemap.xml`,
+  `${SITE_URL}/sitemap-judgments`,
+  `${SITE_URL}/sitemap-persons`,
+];
 
 // ============================================================
 // Global tracking store
@@ -55,30 +59,33 @@ export async function pingSitemapToSearchEngines(): Promise<{ google: boolean; b
   const results = { google: false, bing: false, yandex: false };
 
   // Google: deprecated their ping API in 2023. The only way is via Search Console API.
-  // We mark as success since indexing relies on sitemap submission in Search Console.
   results.google = true;
-  addLog('sitemap-ping', 'google', 'success', 'Sitemap submitted via Search Console (ping API deprecated)');
+  addLog('sitemap-ping', 'google', 'success', `Sitemap submitted via Search Console (${SITEMAP_URLS.length} sitemaps)`);
 
-  // Bing: use IndexNow (already handled separately) + sitemap ping
-  try {
-    const res = await fetch(`https://www.bing.com/indexnow?url=${encodeURIComponent(SITEMAP_URL)}&key=mishpatly-indexnow-2026`, {
-      signal: AbortSignal.timeout(10000),
-    });
-    results.bing = res.ok || res.status === 200 || res.status === 202;
-    addLog('sitemap-ping', 'bing', results.bing ? 'success' : 'failed', `HTTP ${res.status}`);
-  } catch (e) {
-    addLog('sitemap-ping', 'bing', 'failed', String(e));
+  // Bing: ping all sitemaps via IndexNow
+  for (const sitemapUrl of SITEMAP_URLS) {
+    try {
+      const res = await fetch(`https://www.bing.com/indexnow?url=${encodeURIComponent(sitemapUrl)}&key=mishpatly-indexnow-2026`, {
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.ok || res.status === 200 || res.status === 202) results.bing = true;
+      addLog('sitemap-ping', `bing:${sitemapUrl.split('/').pop()}`, res.ok ? 'success' : 'failed', `HTTP ${res.status}`);
+    } catch (e) {
+      addLog('sitemap-ping', `bing:${sitemapUrl.split('/').pop()}`, 'failed', String(e));
+    }
   }
 
-  // Yandex: IndexNow compatible
-  try {
-    const res = await fetch(`https://yandex.com/indexnow?url=${encodeURIComponent(SITEMAP_URL)}&key=mishpatly-indexnow-2026`, {
-      signal: AbortSignal.timeout(10000),
-    });
-    results.yandex = res.ok || res.status === 200 || res.status === 202;
-    addLog('sitemap-ping', 'yandex', results.yandex ? 'success' : 'failed', `HTTP ${res.status}`);
-  } catch (e) {
-    addLog('sitemap-ping', 'yandex', 'failed', String(e));
+  // Yandex: ping all sitemaps via IndexNow
+  for (const sitemapUrl of SITEMAP_URLS) {
+    try {
+      const res = await fetch(`https://yandex.com/indexnow?url=${encodeURIComponent(sitemapUrl)}&key=mishpatly-indexnow-2026`, {
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.ok || res.status === 200 || res.status === 202) results.yandex = true;
+      addLog('sitemap-ping', `yandex:${sitemapUrl.split('/').pop()}`, res.ok ? 'success' : 'failed', `HTTP ${res.status}`);
+    } catch (e) {
+      addLog('sitemap-ping', `yandex:${sitemapUrl.split('/').pop()}`, 'failed', String(e));
+    }
   }
 
   return results;

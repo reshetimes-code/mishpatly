@@ -68,20 +68,12 @@ export async function POST(request: NextRequest) {
         let pageCount = 1;
 
         try {
-          const { PDFParse } = await import('pdf-parse');
-          const parser = new PDFParse({ data: new Uint8Array(buffer) });
-          const textResult = await parser.getText();
+          const pdfParseModule = await import('pdf-parse');
+          const pdfParse = (pdfParseModule as any).default || pdfParseModule;
+          const textResult = await pdfParse(buffer);
           fullText = textResult.text || '';
-          pageCount = textResult.total || 1;
-
-          if (textResult.pages && textResult.pages.length > 0) {
-            firstPageText = textResult.pages[0]?.text || '';
-          }
-          if (!firstPageText) {
-            firstPageText = fullText.slice(0, 2000);
-          }
-
-          await parser.destroy().catch(() => {});
+          pageCount = textResult.numpages || 1;
+          firstPageText = fullText.slice(0, 2000);
         } catch (e) {
           console.error(`[upload] PDF parse error for ${file.name}:`, e);
           // Try to continue with empty text

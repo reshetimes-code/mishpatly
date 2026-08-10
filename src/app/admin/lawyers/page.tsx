@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { Search, Edit3, Trash2, CheckCircle, XCircle, Eye, Plus, X, Save } from 'lucide-react';
+import { Search, Edit3, Trash2, CheckCircle, XCircle, Eye, Plus, X, Save, ShieldCheck } from 'lucide-react';
 import { SPECIALIZATIONS, CITIES } from '@/lib/lawyer-constants';
 
 interface Lawyer {
@@ -167,6 +167,32 @@ export default function AdminLawyersPage() {
     } catch { /* ignore */ }
   }
 
+  async function approveLawyer(lawyer: Lawyer) {
+    const Swal = (await import('sweetalert2')).default;
+    const result = await Swal.fire({
+      title: 'אישור פרסום עורך דין',
+      html: `<b>${lawyer.fullName}</b><br>הכרטיס יפורסם בפורטל עורכי הדין`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'אשר ופרסם',
+      cancelButtonText: 'ביטול',
+      confirmButtonColor: '#16a34a',
+    });
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await fetch(`/api/lawyers/${lawyer.id}`, {
+        method: 'PUT',
+        headers: adminHeaders(),
+        body: JSON.stringify({ licenseNumber: lawyer.licenseNumber, isActive: true }),
+      });
+      if (res.ok) {
+        fetchLawyers();
+        Swal.fire({ icon: 'success', title: 'הכרטיס אושר ופורסם!', timer: 1500, showConfirmButton: false });
+      }
+    } catch { /* ignore */ }
+  }
+
   async function toggleActive(lawyer: Lawyer) {
     const Swal = (await import('sweetalert2')).default;
     const action = lawyer.isActive ? 'להסתיר' : 'להפעיל';
@@ -303,7 +329,7 @@ export default function AdminLawyersPage() {
                         {l.isActive ? (
                           <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">פעיל</span>
                         ) : (
-                          <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full font-medium">מוסתר</span>
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full font-medium animate-pulse">ממתין לאישור</span>
                         )}
                         {l.isVerified && (
                           <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">מאומת</span>
@@ -312,6 +338,13 @@ export default function AdminLawyersPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
+                        {!l.isActive && (
+                          <button onClick={() => approveLawyer(l)} title="אישור ופרסום"
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-600 text-white text-xs font-bold hover:bg-green-700 transition">
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            אישור
+                          </button>
+                        )}
                         <button onClick={() => openEdit(l)} title="עריכה"
                           className="p-1.5 rounded-lg hover:bg-accent/10 text-accent transition"><Edit3 className="w-4 h-4" /></button>
                         <a href={`/lawyers/${l.slug}`} target="_blank" title="צפייה"

@@ -21,7 +21,7 @@ export default function Footer() {
             {/* About */}
             <div className="lg:col-span-1">
               <div className="flex items-center gap-3 mb-5">
-                <Image src="/logo.png" alt="משפטלי" width={45} height={45} className="rounded" />
+                <Image src="/logo.png" alt="משפטלי - מאגר פסקי דין חינם, חיפוש פסקי דין לפי שם" width={45} height={45} className="rounded" />
                 <div>
                   <h3 className="text-white font-bold text-xl">משפטלי</h3>
                   <p className="text-[#C9A84C] text-xs font-medium">מאגר משפטי מתקדם</p>

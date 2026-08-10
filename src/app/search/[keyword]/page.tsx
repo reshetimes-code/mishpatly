@@ -238,28 +238,87 @@ export default async function KeywordPage({
     .map((slug) => keywordPages.find((p) => p.slug === slug))
     .filter(Boolean) as typeof keywordPages;
 
-  // Schema.org structured data
+  // Build FAQ entries from page content
+  const faqEntries = [
+    {
+      '@type': 'Question' as const,
+      name: `מה זה ${page.hebrewTitle}?`,
+      acceptedAnswer: {
+        '@type': 'Answer' as const,
+        text: page.paragraphs[0] || page.metaDescription,
+      },
+    },
+    {
+      '@type': 'Question' as const,
+      name: `איך מחפשים ${page.hebrewTitle} במשפטלי?`,
+      acceptedAnswer: {
+        '@type': 'Answer' as const,
+        text: `ניתן לחפש ${page.hebrewTitle} באתר משפטלי באמצעות הזנת מילות מפתח בשדה החיפוש. המערכת מציגה תוצאות רלוונטיות מכל בתי המשפט בישראל עם אפשרויות סינון מתקדמות.`,
+      },
+    },
+    ...(page.paragraphs.length > 1
+      ? [{
+          '@type': 'Question' as const,
+          name: `למה חשוב לחפש ${page.hebrewTitle}?`,
+          acceptedAnswer: {
+            '@type': 'Answer' as const,
+            text: page.paragraphs[page.paragraphs.length - 1],
+          },
+        }]
+      : []),
+  ];
+
+  // Schema.org structured data with @graph
   const schemaData = {
     '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    name: page.metaTitle,
-    description: page.metaDescription,
-    url: `https://mishpatly.co.il/search/${page.slug}`,
-    inLanguage: 'he',
-    isPartOf: {
-      '@type': 'WebSite',
-      name: 'משפטלי',
-      url: 'https://mishpatly.co.il',
-    },
-    about: {
-      '@type': 'Thing',
-      name: page.hebrewTitle,
-    },
-    provider: {
-      '@type': 'Organization',
-      name: 'משפטלי',
-      url: 'https://mishpatly.co.il',
-    },
+    '@graph': [
+      {
+        '@type': 'Article',
+        headline: page.h1,
+        name: page.metaTitle,
+        description: page.metaDescription,
+        url: `https://mishpatly.co.il/search/${page.slug}`,
+        inLanguage: 'he',
+        datePublished: '2025-01-01',
+        dateModified: new Date().toISOString().split('T')[0],
+        author: {
+          '@type': 'Organization',
+          name: 'משפטלי',
+          url: 'https://mishpatly.co.il',
+        },
+        publisher: {
+          '@type': 'Organization',
+          name: 'משפטלי',
+          url: 'https://mishpatly.co.il',
+          logo: {
+            '@type': 'ImageObject',
+            url: 'https://mishpatly.co.il/logo.png',
+          },
+        },
+        mainEntityOfPage: `https://mishpatly.co.il/search/${page.slug}`,
+        about: {
+          '@type': 'Thing',
+          name: page.hebrewTitle,
+        },
+        isPartOf: {
+          '@type': 'WebSite',
+          name: 'משפטלי',
+          url: 'https://mishpatly.co.il',
+        },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'דף הבית', item: 'https://mishpatly.co.il' },
+          { '@type': 'ListItem', position: 2, name: 'חיפוש', item: 'https://mishpatly.co.il/search' },
+          { '@type': 'ListItem', position: 3, name: page.hebrewTitle, item: `https://mishpatly.co.il/search/${page.slug}` },
+        ],
+      },
+      {
+        '@type': 'FAQPage',
+        mainEntity: faqEntries,
+      },
+    ],
   };
 
   return (

@@ -34,27 +34,31 @@ const features = [
     title: "מאגר פסקי דין מקיף",
     description: "גישה למאגר הגדול בישראל הכולל עשרות אלפי פסקי דין, החלטות שיפוטיות ופרוטוקולים מכל בתי המשפט ברחבי הארץ.",
     image: "/images/feature1.jpg",
+    alt: "מאגר פסקי דין - חיפוש פסקי דין מבית המשפט העליון, המחוזי, השלום ובתי הדין לעבודה",
     href: "/search",
   },
   {
     icon: ShieldCheck,
-    title: "הסרת אזכורים",
-    description: "שירות מקצועי להסרת אזכורים משפטיים ממנועי חיפוש ומאגרי מידע, תוך שמירה על פרטיותך וזכויותיך.",
+    title: "הסרת אזכורים משפטיים",
+    description: "שירות מקצועי להסרת אזכורים משפטיים ממנועי חיפוש כגוגל, מתולעת המשפט, מתקדין ומאגרי מידע, תוך שמירה על פרטיותך וזכויותיך.",
     image: "/images/feature2.jpg",
+    alt: "הסרת אזכורים משפטיים - מחיקת שם מפסק דין מגוגל ומתולעת המשפט",
     href: "/removal",
   },
   {
     icon: SlidersHorizontal,
-    title: "חיפוש מתקדם",
-    description: "מנוע חיפוש חכם המאפשר סינון לפי שם, מספר תיק, בית משפט, תאריך ומילות מפתח לתוצאות מדויקות.",
+    title: "חיפוש פסקי דין לפי שם",
+    description: "מנוע חיפוש חכם המאפשר חיפוש פסקי דין לפי שם אדם, שם חברה, מספר תיק, שם שופט, בית משפט ומילות מפתח.",
     image: "/images/feature3.jpg",
+    alt: "חיפוש פסקי דין לפי שם - איתור תיק בבית משפט לפי שם אדם או תעודת זהות",
     href: "/search?advanced=true",
   },
   {
     icon: Bell,
-    title: "עדכונים שוטפים",
-    description: "קבלת התראות על פסקי דין חדשים, שינויים בתיקים קיימים ועדכוני חקיקה רלוונטיים ישירות למייל שלך.",
+    title: "פסקי דין חדשים כל יום",
+    description: "המאגר מתעדכן אוטומטית כל יום עם פסקי דין חדשים מהרשות השופטת. גזרי דין, הכרעות דין והחלטות מכל הערכאות.",
     image: "/images/feature4.jpg",
+    alt: "פסקי דין חדשים היום - עדכוני פסיקה יומיים מכל בתי המשפט בישראל",
     href: "/articles",
   },
 ];
@@ -81,7 +85,7 @@ export default function HomePage() {
       <section className="relative min-h-[85vh] flex items-center overflow-hidden">
         {/* Background image with overlay */}
         <div className="absolute inset-0 bg-[#072a42]">
-          <img src="/images/hero.jpg" alt="משפטלי - מאגר פסקי דין" className="w-full h-full object-cover opacity-40" />
+          <img src="/images/hero.jpg" alt="משפטלי - מאגר פסקי דין מכל בתי המשפט בישראל, חיפוש פסקי דין לפי שם חינם" className="w-full h-full object-cover opacity-40" />
           <div className="absolute inset-0 bg-gradient-to-l from-[#072a42]/90 via-[#0B3C5D]/80 to-[#0B3C5D]/70" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#072a42] via-transparent to-transparent opacity-60" />
         </div>
@@ -177,7 +181,7 @@ export default function HomePage() {
               >
                 {/* Image */}
                 <div className="relative h-48 overflow-hidden bg-[#0B3C5D]">
-                  <img src={feature.image} alt={feature.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                  <img src={feature.image} alt={feature.alt} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0B3C5D]/80 via-[#0B3C5D]/30 to-transparent" />
                   <div className="absolute bottom-4 right-4 w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
                     <feature.icon className="h-6 w-6 text-[#C9A84C]" strokeWidth={1.8} />
@@ -248,7 +252,7 @@ export default function HomePage() {
             {/* Image side */}
             <div className="relative order-2 lg:order-1">
               <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-[#0B3C5D]/20 bg-[#0B3C5D]">
-                <img src="/images/about.jpg" alt="מאגר פסקי דין מקיף" className="w-full h-full object-cover" />
+                <img src="/images/about.jpg" alt="משפטלי - מאגר פסקי דין חינם באינטרנט, חיפוש לפי שם נתבע, תובע, שופט ומספר תיק" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0B3C5D]/40 to-transparent" />
               </div>
               <div className="absolute -top-4 -right-4 w-full h-full rounded-2xl border-2 border-[#C9A84C]/20 -z-10" />
@@ -341,6 +345,48 @@ export default function HomePage() {
               <Phone className="h-5 w-5" />
               צור קשר
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================ */}
+      {/*  SEO CONTENT — Rich text Google loves (takdin doesn't have) */}
+      {/* ============================================================ */}
+      <section className="bg-white px-4 py-16 sm:px-6">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="text-2xl font-bold text-[#0B3C5D] mb-6">חיפוש פסקי דין לפי שם - מאגר משפטלי</h2>
+          <div className="text-gray-600 leading-relaxed space-y-4 text-sm">
+            <p>
+              <strong>משפטלי (משפט לי)</strong> הוא מאגר פסקי הדין החינמי המוביל בישראל. המאגר כולל אלפי פסקי דין, גזרי דין, הכרעות דין והחלטות שיפוטיות מכל בתי המשפט בישראל - <Link href="/search/piskei-din-bet-mishpat-haelyon" className="text-[#0B3C5D] hover:text-[#C9A84C] underline">בית המשפט העליון</Link>, <Link href="/search/piskei-din-bet-mishpat-hamehozi" className="text-[#0B3C5D] hover:text-[#C9A84C] underline">בית המשפט המחוזי</Link>, <Link href="/search/piskei-din-bet-mishpat-hashalom" className="text-[#0B3C5D] hover:text-[#C9A84C] underline">בית משפט השלום</Link> ובתי הדין לעבודה.
+            </p>
+            <p>
+              באתר משפטלי ניתן לבצע <Link href="/search/piskei-din-lefi-shem" className="text-[#0B3C5D] hover:text-[#C9A84C] underline">חיפוש פסקי דין לפי שם</Link>, <Link href="/search/hipus-psak-din-lefi-tz" className="text-[#0B3C5D] hover:text-[#C9A84C] underline">חיפוש פסק דין לפי תעודת זהות</Link>, <Link href="/search/hipus-tik-lefi-shem" className="text-[#0B3C5D] hover:text-[#C9A84C] underline">חיפוש תיק לפי שם</Link> ו<Link href="/search/hipus-lefi-mispar-tik" className="text-[#0B3C5D] hover:text-[#C9A84C] underline">חיפוש לפי מספר תיק</Link>. המערכת מתעדכנת מדי יום עם <Link href="/search/piskei-din-hadashim-hayom" className="text-[#0B3C5D] hover:text-[#C9A84C] underline">פסקי דין חדשים</Link> מהרשות השופטת.
+            </p>
+            <p>
+              שירותים נוספים: <Link href="/search/bdikat-reka-mishpati" className="text-[#0B3C5D] hover:text-[#C9A84C] underline">בדיקת רקע משפטי</Link>, <Link href="/search/bdikat-avar-mishpati" className="text-[#0B3C5D] hover:text-[#C9A84C] underline">בדיקת עבר משפטי</Link>, <Link href="/search/bdikat-tikim-ptuhim" className="text-[#0B3C5D] hover:text-[#C9A84C] underline">בדיקת תיקים פתוחים</Link>, <Link href="/search/hasarat-azkurim" className="text-[#0B3C5D] hover:text-[#C9A84C] underline">הסרת אזכורים משפטיים</Link> ו<Link href="/search/mhikat-psak-din-mgoogle" className="text-[#0B3C5D] hover:text-[#C9A84C] underline">מחיקת פסק דין מגוגל</Link>. בניגוד למאגרים אחרים כמו תקדין ונבו, החיפוש במשפטלי הוא <Link href="/search/magar-piskei-din-hinam" className="text-[#0B3C5D] hover:text-[#C9A84C] underline">חינמי לחלוטין</Link>.
+            </p>
+          </div>
+
+          <h3 className="text-lg font-bold text-[#0B3C5D] mt-8 mb-4">תחומי משפט</h3>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { href: '/topic/dinei-avoda', label: 'פסקי דין דיני עבודה' },
+              { href: '/topic/dinei-mishpaha', label: 'פסקי דין דיני משפחה' },
+              { href: '/topic/nezikin', label: 'פסקי דין נזיקין' },
+              { href: '/topic/mishpat-plili', label: 'פסקי דין פליליים' },
+              { href: '/topic/mekarkein', label: 'פסקי דין מקרקעין' },
+              { href: '/topic/hozim', label: 'פסקי דין חוזים' },
+              { href: '/search/gzar-din', label: 'גזרי דין' },
+              { href: '/search/hakhrat-din', label: 'הכרעות דין' },
+              { href: '/search/bagatz-piskei-din', label: 'בג"ץ פסקי דין' },
+              { href: '/search/piskei-din-lehorada-hinam', label: 'פסקי דין להורדה חינם' },
+              { href: '/search/itur-tik-beit-mishpat', label: 'איתור תיק בבית משפט' },
+              { href: '/search/net-hamishpat-hipus', label: 'נט המשפט חיפוש' },
+            ].map((link) => (
+              <Link key={link.href} href={link.href} className="bg-gray-100 hover:bg-[#0B3C5D] hover:text-white text-gray-700 px-3 py-1.5 rounded-lg text-xs transition-colors">
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
       </section>

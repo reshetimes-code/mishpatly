@@ -32,10 +32,9 @@ const staticArticleSlugs = [
 ];
 
 /**
- * Main sitemap — static pages, keywords, articles, lawyers, judges, and ALL judgments.
- * Judgments are fetched with only slug+date (lightweight query).
- * Google can handle sitemaps up to 50MB / 50,000 URLs.
- * If we exceed 50K, we'll split into sitemap index.
+ * Main sitemap — static pages, keywords, articles, lawyers only.
+ * Judgments and persons have their own sitemaps via generateSitemaps
+ * in /judgment/sitemap.ts and /person/sitemap.ts.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages: MetadataRoute.Sitemap = [
@@ -107,64 +106,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
   } catch { /* DB unavailable */ }
 
-  // Person pages — judges, plaintiffs, defendants → /person/ pages
-  let personPages: MetadataRoute.Sitemap = [];
-  try {
-    const [judges, plaintiffs, defendants] = await Promise.all([
-      prisma.judgment.findMany({
-        where: { status: 'PUBLISHED', judge: { not: null } },
-        select: { judge: true },
-        distinct: ['judge'],
-      }),
-      prisma.judgment.findMany({
-        where: { status: 'PUBLISHED', plaintiff: { not: null } },
-        select: { plaintiff: true },
-        distinct: ['plaintiff'],
-      }),
-      prisma.judgment.findMany({
-        where: { status: 'PUBLISHED', defendant: { not: null } },
-        select: { defendant: true },
-        distinct: ['defendant'],
-      }),
-    ]);
-
-    const nameSet = new Set<string>();
-    for (const j of judges) {
-      if (j.judge && j.judge.length > 1 && j.judge !== 'לא ידוע') nameSet.add(j.judge.trim());
-    }
-    for (const p of plaintiffs) {
-      if (p.plaintiff && p.plaintiff.length > 1 && p.plaintiff !== 'לא ידוע') nameSet.add(p.plaintiff.trim());
-    }
-    for (const d of defendants) {
-      if (d.defendant && d.defendant.length > 1 && d.defendant !== 'לא ידוע') nameSet.add(d.defendant.trim());
-    }
-
-    personPages = Array.from(nameSet).slice(0, 40000).map((name) => ({
-      url: `${BASE_URL}/person/${encodeURIComponent(name)}`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly' as const,
-      priority: 0.9,
-    }));
-  } catch { /* DB unavailable */ }
-
-  // ALL judgment pages — lightweight query (only slug + date)
-  // Person pages are in /sitemap-persons — keeping this under 50K
-  let judgmentPages: MetadataRoute.Sitemap = [];
-  try {
-    const judgments = await prisma.judgment.findMany({
-      where: { status: 'PUBLISHED' },
-      select: { slug: true, updatedAt: true },
-      orderBy: { id: 'asc' },
-      take: 45000, // Leave room for static/lawyer/judge/article pages
-    });
-    judgmentPages = judgments.map((j) => ({
-      url: `${BASE_URL}/judgment/${encodeURIComponent(j.slug)}`,
-      lastModified: new Date(j.updatedAt),
-      changeFrequency: 'monthly' as const,
-      priority: 0.8,
-    }));
-  } catch { /* DB unavailable */ }
-
   return [
     ...staticPages,
     ...topicPages,
@@ -172,7 +113,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...articlePages,
     ...dbArticlePages,
     ...lawyerPages,
-    ...personPages,
-    ...judgmentPages,
   ];
 }

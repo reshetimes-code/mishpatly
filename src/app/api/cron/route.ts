@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
         'psakdin-חיפוש-עורך-דין-לפי-עיר',
         'psakdin-עורכי-דין-לפי-תחום',
         'psakdin-הלפי-x2013-בוט-משפטי-חכם-שלומד-מפסקי-דין',
+        'psakdin-הלפי-בוט-משפטי-חכם-שלומד-מפסקי-דין',
       ];
       const junkDeleted = await prisma.judgment.deleteMany({
         where: {
@@ -45,6 +46,15 @@ export async function GET(request: NextRequest) {
             { title: { contains: 'רוצים לדעת איך צפוי התיק' } },
             { title: { contains: 'חיפוש עורך דין לפי עיר' } },
             { title: { contains: 'עורכי דין לפי תחום' } },
+            { title: { contains: 'בוט משפטי חכם' } },
+            { title: { contains: 'הלפי' } },
+            // Remove non-GOV entries without real plaintiff AND defendant names
+            // (GOV.IL entries may have empty names temporarily until AI enrichment runs)
+            { AND: [
+              { govFileId: null },
+              { OR: [{ plaintiff: null }, { plaintiff: '' }, { plaintiff: 'לא ידוע' }] },
+              { OR: [{ defendant: null }, { defendant: '' }, { defendant: 'לא ידוע' }] },
+            ]},
           ],
         },
       });
@@ -103,7 +113,7 @@ export async function GET(request: NextRequest) {
             updatedItems: importResult.updatedItems,
             status: importResult.status,
             errors: importResult.errors.length,
-            errorDetails: importResult.errors.slice(0, 5),
+            errorDetails: importResult.errors.slice(0, 10),
           },
           seo: {
             urlsSubmitted: seoResult.indexing.newlySubmitted,

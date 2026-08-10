@@ -80,12 +80,32 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         ? `${data.asDefendant} פסקי דין כנתבע/ת`
         : `${data.asPlaintiff} פסקי דין כתובע/ת`;
 
-  const courtsStr = data.courts.slice(0, 3).join(', ');
-  const title = `${decoded} פסקי דין - ${data.total} פסקי דין בעניין ${decoded} | משפטלי`;
+  // Build case numbers list for title (like תולעת המשפט format)
+  const topCaseNumbers = data.judgments.slice(0, 2).map(j => j.caseNumber).filter(Boolean);
+  const caseNumStr = topCaseNumbers.length > 0 ? ` | ${topCaseNumbers[0]}` : '';
 
-  const description = `${decoded} - ${data.total} פסקי דין במאגר משפטלי. ${roleDesc}. ${courtsStr ? `בתי משפט: ${courtsStr}.` : ''} כל פסקי הדין, ההחלטות והפסיקות בעניין ${decoded}. חיפוש פסקי דין לפי שם באתר משפטלי - המאגר המשפטי המוביל בישראל.`;
+  // Build opponent names for description (shows who they're against)
+  const opponents = data.judgments.slice(0, 5).flatMap(j => {
+    const names: string[] = [];
+    if (j.plaintiff && j.plaintiff !== decoded) names.push(j.plaintiff);
+    if (j.defendant && j.defendant !== decoded) names.push(j.defendant);
+    return names;
+  }).filter((n, i, arr) => n.length > 1 && arr.indexOf(n) === i).slice(0, 3);
+
+  const courtsStr = data.courts.slice(0, 3).join(', ');
+
+  // Title format optimized to beat תולעת המשפט: name first, case count, case number
+  const title = `${decoded} - ${data.total} פסקי דין${caseNumStr} | פסקי דין ${decoded} | משפטלי`;
+
+  // Description: name-dense, shows opponents and case count (like תולעת המשפט)
+  const opponentStr = opponents.length > 0
+    ? ` ${decoded} ו${opponents[0]}, ${data.judgments.filter(j => j.plaintiff === opponents[0] || j.defendant === opponents[0]).length} תיקים.`
+    : '';
+  const description = `${decoded}, ${data.total} תיקים.${opponentStr} ${roleDesc}. ${courtsStr ? `בתי משפט: ${courtsStr}.` : ''} כל פסקי הדין וההחלטות בעניין ${decoded}. חיפוש פסקי דין לפי שם - ${decoded} במאגר משפטלי.`;
 
   const keywords = [
+    decoded,
+    `${decoded} פסקי דין`,
     `פסקי דין ${decoded}`,
     `${decoded} בית משפט`,
     `${decoded} נתבע`,
@@ -93,13 +113,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     `${decoded} פסק דין`,
     `פסקי דין נגד ${decoded}`,
     `${decoded} שופט`,
-    `${decoded} החלטות`,
-    `חיפוש פסקי דין ${decoded}`,
+    `${decoded} תיקים`,
     `${decoded} משפט`,
+    `חיפוש ${decoded}`,
+    `${decoded} הרשעה`,
+    `${decoded} זיכוי`,
+    ...opponents.map(o => `${decoded} נגד ${o}`),
+    ...opponents.map(o => `${o} נגד ${decoded}`),
+    ...topCaseNumbers,
     'פסקי דין',
     'מאגר פסקי דין',
     'משפטלי',
     'חיפוש פסקי דין לפי שם',
+    'תולעת המשפט',
   ];
 
   return {
@@ -108,17 +134,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     keywords,
     alternates: { canonical: `${SITE_URL}/person/${encodeURIComponent(decoded)}` },
     openGraph: {
-      title: `${decoded} - כל פסקי הדין | משפטלי`,
+      title: `${decoded} - ${data.total} פסקי דין | משפטלי`,
       description,
       type: 'profile',
       locale: 'he_IL',
-      siteName: 'משפטלי',
+      siteName: 'משפטלי - מאגר פסקי דין',
       url: `${SITE_URL}/person/${encodeURIComponent(decoded)}`,
-      images: [{ url: `${SITE_URL}/opengraph-image`, width: 1200, height: 630, alt: `פסקי דין ${decoded}` }],
+      images: [{ url: `${SITE_URL}/opengraph-image`, width: 1200, height: 630, alt: `${decoded} - פסקי דין` }],
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${decoded} - פסקי דין | משפטלי`,
+      title: `${decoded} - ${data.total} פסקי דין | משפטלי`,
       description,
     },
     robots: {
@@ -336,11 +362,11 @@ export default async function PersonPage({ params }: PageProps) {
                 <Link
                   key={j.id}
                   href={`/judgment/${encodeURIComponent(j.slug)}`}
-                  className="block bg-white rounded-xl shadow hover:shadow-md transition-shadow p-5 border border-gray-100"
+                  className="block bg-white rounded-xl shadow hover:shadow-md transition-shadow p-5 border border-gray-100 group"
                 >
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-[#0B3C5D] mb-1">
+                      <h3 className="text-lg font-semibold text-[#0B3C5D] mb-1 group-hover:text-[#C9A84C] transition-colors">
                         {decode(j.caseNumber)}
                       </h3>
                       <div className="text-sm text-gray-600 space-y-1">
@@ -390,6 +416,9 @@ export default async function PersonPage({ params }: PageProps) {
                           {decode(j.category)}
                         </span>
                       )}
+                      <span className="bg-[#0B3C5D] text-white px-3 py-1 rounded-lg text-xs font-medium group-hover:bg-[#C9A84C] group-hover:text-[#072a42] transition-colors mt-1">
+                        צפה בפסק הדין &larr;
+                      </span>
                     </div>
                   </div>
                 </Link>

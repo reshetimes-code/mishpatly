@@ -97,17 +97,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const hasPlaintiff = !!j.plaintiff;
   const caseNum = decode(j.caseNumber);
 
+  // Title format: match court style like תולעת המשפט - case number + parties with נ'
   const title = personName
     ? hasDefendant && hasPlaintiff
-      ? `${j.defendant} - פסקי דין נגד ${j.defendant} | ${j.plaintiff} נגד ${j.defendant} | משפטלי`
-      : `${personName} - פסק דין ${caseNum} | ${j.court} | משפטלי`
-    : `פסק דין ${caseNum} | ${j.court} | משפטלי`;
+      ? `${caseNum} ${j.plaintiff} נ' ${j.defendant} | פסקי דין ${j.defendant} | משפטלי`
+      : `${caseNum} ${personName} | פסק דין ${personName} | משפטלי`
+    : `${caseNum} | פסק דין ${j.court} | משפטלי`;
 
+  // Description: name-dense format with opponent info (like תולעת המשפט)
   const description = personName
     ? hasDefendant && hasPlaintiff
-      ? `פסקי דין נגד ${j.defendant}. ${j.plaintiff} נגד ${j.defendant} - פסק דין ${caseNum} ב${j.court}. צפו בפסקי דין של ${j.defendant}. ${(j.summary || '').slice(0, 100)}`
-      : `כל פסקי הדין עבור ${personName}. פסק דין ${caseNum} ב${j.court}. ${(j.summary || '').slice(0, 120)}`
-    : `פסק דין ${caseNum} - ${j.summary?.slice(0, 150)}`;
+      ? `${j.defendant} ו${j.plaintiff}, ${caseNum}. פסק דין ${j.defendant} ב${j.court}${j.judge ? `, השופט/ת ${j.judge}` : ''}. ${(j.summary || '').slice(0, 100)}`
+      : `${personName}, ${caseNum}. פסק דין ${personName} ב${j.court}${j.judge ? `, השופט/ת ${j.judge}` : ''}. ${(j.summary || '').slice(0, 120)}`
+    : `פסק דין ${caseNum} - ${j.court}. ${j.summary?.slice(0, 150)}`;
 
   const keywords = [
     personName, j.defendant, j.plaintiff,

@@ -13,23 +13,28 @@ export async function GET(
   const { id } = await params;
 
   try {
+    const type = new URL(_request.url).searchParams.get('type');
+    const isCover = type === 'cover';
+
     // id can be numeric id or slug
     const lawyer = await prisma.lawyer.findFirst({
       where: isNaN(Number(id)) ? { slug: id } : { id: Number(id) },
-      select: { profileImage: true },
+      select: isCover ? { coverImage: true } : { profileImage: true },
     });
 
-    if (!lawyer?.profileImage) {
+    const imageData = isCover ? (lawyer as { coverImage?: string | null })?.coverImage : (lawyer as { profileImage?: string | null })?.profileImage;
+
+    if (!imageData) {
       return new NextResponse(null, { status: 404 });
     }
 
     // If it's already a URL, redirect to it
-    if (lawyer.profileImage.startsWith('http')) {
-      return NextResponse.redirect(lawyer.profileImage);
+    if (imageData.startsWith('http')) {
+      return NextResponse.redirect(imageData);
     }
 
     // Parse base64 data URI: data:image/jpeg;base64,/9j/4AAQ...
-    const match = lawyer.profileImage.match(/^data:image\/(\w+);base64,(.+)$/);
+    const match = imageData.match(/^data:image\/(\w+);base64,(.+)$/);
     if (!match) {
       return new NextResponse(null, { status: 404 });
     }

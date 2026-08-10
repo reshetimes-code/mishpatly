@@ -24,7 +24,7 @@ const GOV_PASSWORD = process.env.GOV_PASSWORD || '';
 
 // Rate limiting
 const DELAY_BETWEEN_REQUESTS = 3000; // 3 seconds
-const MAX_FILES_PER_RUN = 50;
+const MAX_FILES_PER_RUN = 100;
 
 // Blacklisted case numbers - court-ordered confidential cases
 // These will never be imported or published
@@ -158,6 +158,9 @@ async function fetchFolderFiles(folderDate: string): Promise<string[]> {
 /**
  * Download a PDF and extract text using pdf-parse
  */
+// Track last PDF parse error for debugging
+let lastPdfParseError = '';
+
 async function downloadAndParsePDF(folderDate: string, filename: string): Promise<{
   fullText: string;
   firstPageText: string;
@@ -172,67 +175,84 @@ async function downloadAndParsePDF(folderDate: string, filename: string): Promis
     const header = buffer.slice(0, 5).toString('ascii');
     if (!header.startsWith('%PDF')) {
       const preview = buffer.slice(0, 200).toString('utf-8');
-      console.error(`[gov-scraper] ${filename}: Not a PDF (header: ${header}). Preview: ${preview.slice(0, 100)}`);
+      lastPdfParseError = `Not a PDF (header: ${header}). Preview: ${preview.slice(0, 80)}`;
+      console.error(`[gov-scraper] ${filename}: ${lastPdfParseError}`);
       return null;
     }
 
     console.log(`[gov-scraper] ${filename}: Downloaded ${buffer.length} bytes, valid PDF`);
+
+    // Polyfills for Alpine/Docker environments (required by pdfjs-dist)
+    if (typeof globalThis.DOMMatrix === 'undefined') {
+      globalThis.DOMMatrix = class DOMMatrix {
+        a=1;b=0;c=0;d=1;e=0;f=0;is2D=true;isIdentity=true;
+        m11=1;m12=0;m13=0;m14=0;m21=0;m22=1;m23=0;m24=0;
+        m31=0;m32=0;m33=1;m34=0;m41=0;m42=0;m43=0;m44=1;
+        constructor() {}
+        inverse() { return new DOMMatrix(); }
+        multiply() { return new DOMMatrix(); }
+        translate() { return new DOMMatrix(); }
+        scale() { return new DOMMatrix(); }
+        rotate() { return new DOMMatrix(); }
+        transformPoint(p: any) { return p || {x:0,y:0}; }
+        toString() { return 'matrix(1,0,0,1,0,0)'; }
+        static fromMatrix() { return new DOMMatrix(); }
+        static fromFloat32Array() { return new DOMMatrix(); }
+        static fromFloat64Array() { return new DOMMatrix(); }
+      } as unknown as typeof DOMMatrix;
+    }
+    if (typeof (globalThis as any).Path2D === 'undefined') {
+      (globalThis as any).Path2D = class Path2D {
+        constructor() {}
+        addPath() {}
+        closePath() {}
+        moveTo() {}
+        lineTo() {}
+        bezierCurveTo() {}
+        quadraticCurveTo() {}
+        arc() {}
+        arcTo() {}
+        ellipse() {}
+        rect() {}
+      };
+    }
 
     // Extract text from PDF - try multiple approaches for Alpine compatibility
     let fullText = '';
     let firstPageText = '';
     let pageCount = 1;
 
-    // Approach 1: pdfjs-dist/legacy (works in most Node.js environments)
+    // Approach 1: pdf-parse (most reliable in Docker/Alpine)
     try {
-      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-      const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
-      pageCount = doc.numPages;
-      for (let i = 1; i <= pageCount; i++) {
-        const page = await doc.getPage(i);
-        const content = await page.getTextContent();
-        const pageText = content.items
-          .filter((item: any) => 'str' in item)
-          .map((item: any) => item.str)
-          .join(' ');
-        fullText += pageText + '\n';
-        if (i === 1) firstPageText = pageText;
-      }
-      await doc.destroy();
+      const pdfParseModule = await import('pdf-parse');
+      const pdfParse = (pdfParseModule as any).default || pdfParseModule;
+      const result = await pdfParse(buffer);
+      fullText = result.text || '';
+      pageCount = result.numpages || 1;
+      firstPageText = fullText.slice(0, 3000);
     } catch (e1) {
-      console.warn(`[gov-scraper] pdfjs-dist/legacy failed for ${filename}: ${String(e1).slice(0, 100)}`);
+      console.warn(`[gov-scraper] pdf-parse failed for ${filename}: ${String(e1).slice(0, 200)}`);
 
-      // Approach 2: pdf-parse v2 with DOMMatrix polyfill
+      // Approach 2: pdf2json fallback
       try {
-        if (typeof globalThis.DOMMatrix === 'undefined') {
-          globalThis.DOMMatrix = class DOMMatrix {
-            a=1;b=0;c=0;d=1;e=0;f=0;is2D=true;isIdentity=true;
-            m11=1;m12=0;m13=0;m14=0;m21=0;m22=1;m23=0;m24=0;
-            m31=0;m32=0;m33=1;m34=0;m41=0;m42=0;m43=0;m44=1;
-            constructor() {}
-            inverse() { return new DOMMatrix(); }
-            multiply() { return new DOMMatrix(); }
-            translate() { return new DOMMatrix(); }
-            scale() { return new DOMMatrix(); }
-            rotate() { return new DOMMatrix(); }
-            transformPoint(p: any) { return p || {x:0,y:0}; }
-            toString() { return 'matrix(1,0,0,1,0,0)'; }
-            static fromMatrix() { return new DOMMatrix(); }
-            static fromFloat32Array() { return new DOMMatrix(); }
-            static fromFloat64Array() { return new DOMMatrix(); }
-          } as unknown as typeof DOMMatrix;
-        }
-        const { PDFParse } = await import('pdf-parse');
-        const parser = new PDFParse({ data: new Uint8Array(buffer) });
-        // @ts-expect-error load() needed for init
-        await parser.load();
-        const textResult = await parser.getText();
-        fullText = textResult.text || '';
-        pageCount = textResult.total || 1;
-        firstPageText = textResult.pages?.[0]?.text || fullText.slice(0, 2000);
-        await parser.destroy().catch(() => {});
+        const { default: PDFParser } = await import('pdf2json');
+        const result = await new Promise<{ text: string; pages: number }>((resolve, reject) => {
+          const parser = new PDFParser();
+          parser.on('pdfParser_dataReady', (data: any) => {
+            const text = data.Pages.map((p: any) =>
+              p.Texts.map((t: any) => decodeURIComponent(t.R[0]?.T || '')).join(' ')
+            ).join('\n');
+            resolve({ text, pages: data.Pages.length });
+          });
+          parser.on('pdfParser_dataError', (err: any) => reject(err));
+          parser.parseBuffer(buffer);
+        });
+        fullText = result.text;
+        pageCount = result.pages;
+        firstPageText = fullText.split('\n')[0]?.slice(0, 2000) || fullText.slice(0, 2000);
       } catch (e2) {
-        console.error(`[gov-scraper] All PDF parsers failed for ${filename}: ${String(e2).slice(0, 200)}`);
+        lastPdfParseError = `pdf-parse: ${String(e1).slice(0, 80)} | pdf2json: ${String(e2).slice(0, 80)}`;
+        console.error(`[gov-scraper] All parsers failed for ${filename}: ${lastPdfParseError}`);
         return null;
       }
     }
@@ -240,13 +260,15 @@ async function downloadAndParsePDF(folderDate: string, filename: string): Promis
     // If text is empty or just page separators, log it
     const cleanText = fullText.replace(/--\s*\d+\s*of\s*\d+\s*--/g, '').trim();
     if (!cleanText) {
-      console.warn(`[gov-scraper] ${filename}: PDF has ${pageCount} pages but no extractable text (scanned/image PDF?). Buffer size: ${buffer.length}`);
+      lastPdfParseError = `Empty text after extraction (${pageCount} pages, ${buffer.length} bytes - scanned/image PDF?)`;
+      console.warn(`[gov-scraper] ${filename}: ${lastPdfParseError}`);
       return null;
     }
 
     return { fullText: cleanText, firstPageText: firstPageText || cleanText.slice(0, 2000), pageCount };
   } catch (e) {
-    console.error(`[gov-scraper] Error parsing PDF ${filename}:`, String(e));
+    lastPdfParseError = `Download/outer error: ${String(e).slice(0, 100)}`;
+    console.error(`[gov-scraper] ${filename}: ${lastPdfParseError}`);
     return null;
   }
 }
@@ -265,7 +287,7 @@ function folderDateToISO(folderDate: string): string {
 /**
  * Main scraper function - fetches new judgments from decisions.court.gov.il
  */
-export async function scrapeGovDecisions(existingGovFileIds: Set<string>): Promise<{
+export async function scrapeGovDecisions(existingGovFileIds: Set<string>, confidentialCaseNumbers: Set<string> = new Set()): Promise<{
   items: GovDecisionItem[];
   errors: string[];
   processedFolders: string[];
@@ -293,6 +315,7 @@ export async function scrapeGovDecisions(existingGovFileIds: Set<string>): Promi
     }
 
     // Step 2: Process folders (newest first)
+    let skippedExisting = 0;
     for (const folder of folders) {
       if (totalProcessed >= MAX_FILES_PER_RUN) {
         console.log(`[gov-scraper] Reached max files limit (${MAX_FILES_PER_RUN})`);
@@ -302,8 +325,15 @@ export async function scrapeGovDecisions(existingGovFileIds: Set<string>): Promi
       try {
         await sleep(DELAY_BETWEEN_REQUESTS);
         const files = await fetchFolderFiles(folder);
-        console.log(`[gov-scraper] Folder ${folder}: ${files.length} PDF files`);
+        const newFiles = files.filter(f => !existingGovFileIds.has(f.replace('.pdf', '')));
+        console.log(`[gov-scraper] Folder ${folder}: ${files.length} PDFs (${newFiles.length} new, ${files.length - newFiles.length} existing)`);
         processedFolders.push(folder);
+
+        // Skip folder entirely if no new files
+        if (newFiles.length === 0) {
+          skippedExisting += files.length;
+          continue;
+        }
 
         // Step 3: Process each PDF file
         for (const filename of files) {
@@ -322,7 +352,7 @@ export async function scrapeGovDecisions(existingGovFileIds: Set<string>): Promi
           // Download and parse PDF
           const parsed = await downloadAndParsePDF(folder, filename);
           if (!parsed) {
-            errors.push(`${folder}/${filename}: לא ניתן לחלץ טקסט (PDF ריק, סרוק או לא תקין)`);
+            errors.push(`${folder}/${filename}: ${lastPdfParseError || 'PDF parse failed'}`);
             totalProcessed++;
             continue;
           }
@@ -369,9 +399,13 @@ export async function scrapeGovDecisions(existingGovFileIds: Set<string>): Promi
           // Try to extract case number from text
           const caseNumber = extractCaseNumber(parsed.firstPageText) || `GOV-${fileId.slice(0, 8)}`;
 
-          // Skip blacklisted (confidential) cases
-          if (BLACKLISTED_CASES.has(caseNumber) || [...BLACKLISTED_CASES].some(bc => caseNumber.includes(bc))) {
-            console.log(`[gov-scraper] Skipping blacklisted case: ${caseNumber}`);
+          // Skip blacklisted (confidential) cases - hardcoded + dynamic from DB
+          const isBlacklisted = BLACKLISTED_CASES.has(caseNumber)
+            || [...BLACKLISTED_CASES].some(bc => caseNumber.includes(bc))
+            || confidentialCaseNumbers.has(caseNumber)
+            || [...confidentialCaseNumbers].some(cc => caseNumber.includes(cc) || cc.includes(caseNumber));
+          if (isBlacklisted) {
+            console.log(`[gov-scraper] Skipping confidential/blacklisted case: ${caseNumber}`);
             totalProcessed++;
             continue;
           }

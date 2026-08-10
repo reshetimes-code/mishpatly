@@ -199,15 +199,34 @@ export async function searchLawyers(opts: {
         ? { yearsExperience: 'desc' as const }
         : { rating: 'desc' as const };
 
-  const [lawyers, total] = await Promise.all([
+  const [rawLawyers, total] = await Promise.all([
     prisma.lawyer.findMany({
       where,
       orderBy,
       skip: (page - 1) * limit,
       take: limit,
+      select: {
+        id: true, slug: true, fullName: true, licenseNumber: true,
+        phone: true, email: true, city: true, address: true,
+        specializations: true, courtDistrict: true,
+        yearsExperience: true, education: true, bio: true,
+        website: true, whatsapp: true, passwordHash: true,
+        rating: true, reviewCount: true,
+        isVerified: true, isActive: true,
+        createdAt: true, updatedAt: true,
+        // Don't load heavy base64 images in list view
+      },
     }),
     prisma.lawyer.count({ where }),
   ]);
+
+  // Replace heavy base64 images with lightweight API URLs
+  const lawyers = rawLawyers.map(l => ({
+    ...l,
+    profileImage: `/api/lawyers/${l.id}/image` as string | null,
+    coverImage: `/api/lawyers/${l.id}/image?type=cover` as string | null,
+    galleryImages: [] as string[],
+  }));
 
   return {
     lawyers,

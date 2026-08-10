@@ -57,7 +57,7 @@ export default function Header() {
             <div className="relative">
               <Image
                 src="/logo.png"
-                alt="משפטלי"
+                alt="משפטלי - משפט לי - מאגר פסקי דין וחיפוש לפי שם חינם"
                 width={180}
                 height={180}
                 className="object-contain transition-transform duration-500 group-hover:scale-105"

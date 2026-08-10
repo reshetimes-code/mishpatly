@@ -156,17 +156,25 @@ export async function runDailyImport(): Promise<ImportRecord> {
     ? (mainRecord.count > 0 ? 'partial' : 'failed')
     : 'success';
 
-  // AI comprehensive scan: enrich newly imported judgments with full analysis
+  // AI comprehensive scan: enrich newly imported judgments with full analysis.
+  // Also picks up the PENDING_REVIEW backlog (judgments that came in without
+  // real plaintiff/defendant names, e.g. from garbled PDF text) so they can
+  // get published once AI manages to extract real names.
   try {
     const needsScan = await prisma.judgment.findMany({
       where: {
-        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
         aiEnrichedAt: null,
+        OR: [
+          { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+          { status: 'PENDING_REVIEW' },
+        ],
       },
-      take: 30,
+      orderBy: { createdAt: 'asc' }, // work through the oldest backlog first
+      take: 5, // Limit AI enrichment to 5/day to control Gemini API costs
     });
 
     let aiUpdated = 0;
+    let aiPublished = 0;
     for (const j of needsScan) {
       try {
         const analysis = await generateComprehensiveAnalysis(
@@ -197,6 +205,17 @@ export async function runDailyImport(): Promise<ImportRecord> {
           analysis,
         );
 
+        // Only publish once real party names are in place - names are the
+        // whole point (SEO + removal-request business), never show a
+        // judgment without them.
+        const finalPlaintiff = (updates.plaintiff as string) ?? j.plaintiff ?? '';
+        const finalDefendant = (updates.defendant as string) ?? j.defendant ?? '';
+        const hasRealName = (n: string) => !!n && n.trim().length > 0 && n.trim() !== 'לא ידוע';
+        if (j.status === 'PENDING_REVIEW' && (hasRealName(finalPlaintiff) || hasRealName(finalDefendant))) {
+          updates.status = 'PUBLISHED';
+          aiPublished++;
+        }
+
         if (Object.keys(updates).length > 0) {
           await prisma.judgment.update({ where: { id: j.id }, data: updates });
           aiUpdated++;
@@ -205,7 +224,7 @@ export async function runDailyImport(): Promise<ImportRecord> {
       } catch { /* continue on error */ }
     }
     if (aiUpdated > 0) {
-      console.log(`[daily-import] AI enriched ${aiUpdated} judgments with comprehensive analysis`);
+      console.log(`[daily-import] AI enriched ${aiUpdated} judgments with comprehensive analysis (${aiPublished} published after names found)`);
     }
   } catch (e) {
     console.error('[daily-import] AI scan error:', e);
