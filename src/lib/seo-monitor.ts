@@ -39,11 +39,12 @@ interface KeywordRanking {
 }
 
 /**
- * Check Google ranking for a keyword using SerpApi (real Google SERP, no
+ * Check Google ranking for a keyword/name using SerpApi (real Google SERP, no
  * "search the entire web" toggle needed - that's a Google CSE-only concept).
  * Falls back to Google Custom Search API, then a simple scrape check.
+ * Exported so other bots (e.g. name-ranking-monitor) can reuse the same check.
  */
-async function checkGoogleRanking(keyword: string): Promise<{ position: number | null; url: string | null }> {
+export async function checkGoogleRanking(keyword: string): Promise<{ position: number | null; url: string | null }> {
   const serpApiKey = process.env.SERPAPI_KEY;
   if (serpApiKey) {
     try {

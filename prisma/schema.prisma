@@ -26,6 +26,20 @@ enum UserRole {
   VIEWER
 }
 
+model NameRanking {
+  id            Int       @id @default(autoincrement())
+  name          String    @unique
+  url           String?
+  position      Int?
+  lastCheckedAt DateTime? @map("last_checked_at")
+  checkCount    Int       @default(0) @map("check_count")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([lastCheckedAt])
+  @@map("name_rankings")
+}
+
 model Judgment {
   id              Int             @id @default(autoincrement())
   title           String
