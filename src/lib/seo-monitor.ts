@@ -39,10 +39,29 @@ interface KeywordRanking {
 }
 
 /**
- * Check Google ranking for a keyword using Custom Search API
- * Falls back to a simple scrape check if API not available
+ * Check Google ranking for a keyword using SerpApi (real Google SERP, no
+ * "search the entire web" toggle needed - that's a Google CSE-only concept).
+ * Falls back to Google Custom Search API, then a simple scrape check.
  */
 async function checkGoogleRanking(keyword: string): Promise<{ position: number | null; url: string | null }> {
+  const serpApiKey = process.env.SERPAPI_KEY;
+  if (serpApiKey) {
+    try {
+      const url = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(keyword)}&google_domain=google.co.il&gl=il&hl=he&num=100&api_key=${serpApiKey}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (res.ok) {
+        const data = await res.json();
+        const results = data.organic_results || [];
+        for (const r of results) {
+          if (r.link && r.link.includes(SITE_DOMAIN)) {
+            return { position: r.position ?? null, url: r.link };
+          }
+        }
+        return { position: null, url: null }; // valid response, just not found in results
+      }
+    } catch { /* SerpApi error, fall through to Google CSE below */ }
+  }
+
   const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
   const cx = process.env.GOOGLE_SEARCH_CX;
 
