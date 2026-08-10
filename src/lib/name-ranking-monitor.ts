@@ -18,6 +18,32 @@ import { getPersonNameIndex, submitUrlsToGoogle, submitUrlsViaIndexNow } from '.
 // 8/day keeps us at ~240/month, safely under the 250/month free SerpApi quota
 const DAILY_CHECK_LIMIT = 8;
 
+// Institutional/anonymized parties are never removal-request customers -
+// checking their ranking would waste scarce free-tier API quota. Individual
+// people (and companies) are what the business actually targets.
+const NON_ACTIONABLE_NAMES = new Set([
+  'מדינת ישראל',
+  'פלוני',
+  'פלונית',
+  'אלמוני',
+  'אלמונית',
+  'המוסד לביטוח לאומי',
+  'ביטוח לאומי',
+  'משרד ראש הממשלה',
+  'היועץ המשפטי לממשלה',
+  'היועצת המשפטית לממשלה',
+  'רשות המסים',
+  'מדינת ישראל - רשות המסים',
+]);
+
+function isActionableName(name: string): boolean {
+  const trimmed = name.trim();
+  if (NON_ACTIONABLE_NAMES.has(trimmed)) return false;
+  if (trimmed.startsWith('פלוני') || trimmed.startsWith('אלמוני')) return false; // "פלוני 1", "אלמונית 2" etc.
+  if (trimmed.startsWith('משרד ה')) return false; // government ministries
+  return true;
+}
+
 export interface NameRankResult {
   name: string;
   position: number | null;
@@ -32,7 +58,7 @@ export interface NameRankResult {
  * ordered by staleness (oldest check first).
  */
 async function pickNamesToCheck(limit: number): Promise<{ name: string; urls: string[] }[]> {
-  const allNames = await getPersonNameIndex(); // [{name, urls, judgmentCount}], sorted by judgmentCount desc
+  const allNames = (await getPersonNameIndex()).filter(n => isActionableName(n.name));
   const existing = await prisma.nameRanking.findMany({
     select: { name: true, lastCheckedAt: true },
   });
