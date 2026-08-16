@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { keywordPages } from '@/app/seo-keywords';
+import { searchLawyers } from '@/lib/lawyer-store';
 
 // ─── Static Params ───────────────────────────────────────────────────
 
@@ -10,6 +11,10 @@ export function generateStaticParams() {
     keyword: page.slug,
   }));
 }
+
+// Pages are statically generated (generateStaticParams above), so refresh
+// hourly to pick up newly-approved lawyers without a full redeploy.
+export const revalidate = 3600;
 
 // ─── Metadata ────────────────────────────────────────────────────────
 
@@ -238,6 +243,17 @@ export default async function KeywordPage({
     .map((slug) => keywordPages.find((p) => p.slug === slug))
     .filter(Boolean) as typeof keywordPages;
 
+  // Lawyer portal landing pages promise a lawyer listing in their copy -
+  // actually fetch and render matching lawyers instead of leaving it dead.
+  const matchedLawyers = page.lawyerFilter
+    ? (await searchLawyers({
+        city: page.lawyerFilter.city || '',
+        specialization: page.lawyerFilter.specialization || '',
+        limit: 9,
+        sortBy: 'rating',
+      })).lawyers
+    : [];
+
   // Build FAQ entries from page content
   const faqEntries = [
     {
@@ -416,6 +432,57 @@ export default async function KeywordPage({
                   </p>
                 ))}
               </article>
+
+              {/* Matching Lawyers - only on lawyer-portal landing pages */}
+              {page.lawyerFilter && matchedLawyers.length > 0 && (
+                <div className="mb-10">
+                  <h2 className="mb-4 text-xl font-bold text-primary">
+                    עורכי דין - {page.hebrewTitle}
+                  </h2>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {matchedLawyers.map((l) => (
+                      <Link
+                        key={l.id}
+                        href={`/lawyers/${l.slug}`}
+                        className="flex gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                      >
+                        {l.profileImage ? (
+                          <img
+                            src={l.profileImage}
+                            alt={l.fullName}
+                            loading="lazy"
+                            className="h-16 w-16 shrink-0 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent to-[#D4B85E] text-xl font-bold text-[#072a42]">
+                            {l.fullName.charAt(0)}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="truncate font-bold text-primary">עו&quot;ד {l.fullName}</p>
+                          <p className="truncate text-sm text-gray-500">{l.city}</p>
+                          <p className="mt-1 truncate text-xs text-gray-600">
+                            {l.specializations.slice(0, 3).join(' · ')}
+                          </p>
+                          {l.rating > 0 && (
+                            <p className="mt-1 text-xs font-semibold text-accent">
+                              &#x2605; {l.rating.toFixed(1)} ({l.reviewCount})
+                            </p>
+                          )}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="mt-4 text-center">
+                    <Link
+                      href={`/lawyers${page.lawyerFilter.city ? `?city=${encodeURIComponent(page.lawyerFilter.city)}` : ''}${page.lawyerFilter.specialization ? `${page.lawyerFilter.city ? '&' : '?'}specialization=${encodeURIComponent(page.lawyerFilter.specialization)}` : ''}`}
+                      className="inline-block rounded-lg border border-primary px-6 py-2.5 text-sm font-bold text-primary transition-colors hover:bg-primary hover:text-white"
+                    >
+                      לכל עורכי הדין - {page.hebrewTitle}
+                    </Link>
+                  </div>
+                </div>
+              )}
 
               {/* Sample Judgments */}
               <div className="mb-6">

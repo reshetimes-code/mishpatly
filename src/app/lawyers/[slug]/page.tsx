@@ -6,6 +6,14 @@ import ReviewSection from './ReviewSection';
 
 const SITE_URL = 'https://mishpatly.co.il';
 
+// Some lawyers already stored their full name with a leading "עו"ד" /
+// "עו״ד" / "עוה"ד" prefix - every title/description on this page also
+// prepends that prefix, so without stripping it first we'd render
+// "עו"ד עו"ד <name>".
+function stripLawyerTitlePrefix(name: string): string {
+  return name.replace(/^\s*עו(?:ה)?["״'׳]?\s*ד\.?\s*/u, '').trim();
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -16,6 +24,7 @@ export async function generateMetadata({
   if (slug === 'login' || slug === 'register') return {};
   const lawyer = await getLawyerBySlug(slug);
   if (!lawyer) return { title: 'עורך דין לא נמצא | משפטלי' };
+  lawyer.fullName = stripLawyerTitlePrefix(lawyer.fullName);
 
   const specs = lawyer.specializations.join(', ');
   const title = `עו"ד ${lawyer.fullName} - ${specs || 'עורך דין'} | ${lawyer.city} | פורטל עורכי דין משפטלי`;
@@ -197,6 +206,7 @@ export default async function LawyerProfilePage({
   if (!lawyer) {
     notFound();
   }
+  lawyer.fullName = stripLawyerTitlePrefix(lawyer.fullName);
 
   const reviews = await getReviewsByLawyerId(lawyer.id);
   const seoContent = buildLawyerSeoContent(lawyer);
