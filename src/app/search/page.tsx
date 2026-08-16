@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
+import { searchLawyers } from "@/lib/lawyer-store";
 import type { StoredJudgment } from "@/lib/judgment-store";
 
 export const dynamic = "force-dynamic";
@@ -204,6 +205,12 @@ export default async function SearchPage({
   }
 
   const hasActiveFilters = courtFilter || yearFilter || procedureFilter || categoryFilter || sourceFilter || judgeFilter;
+
+  // Cross-link into the lawyers portal when someone is browsing a specific
+  // legal category - same signal as the judgment/person pages.
+  const matchedLawyers = categoryFilter
+    ? (await searchLawyers({ specialization: categoryFilter, limit: 3, sortBy: 'rating' })).lawyers
+    : [];
 
   return (
     <div dir="rtl" className="min-h-screen bg-legal-bg text-legal-text">
@@ -411,6 +418,42 @@ export default async function SearchPage({
                 )}
               </div>
             </details>
+
+            {/* Lawyers portal cross-link when filtering by category */}
+            {matchedLawyers.length > 0 && (
+              <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+                <h3 className="mb-3 text-sm font-bold text-primary">
+                  עורכי דין בתחום {categoryFilter}
+                </h3>
+                <div className="space-y-2">
+                  {matchedLawyers.map((l) => (
+                    <Link
+                      key={l.id}
+                      href={`/lawyers/${l.slug}`}
+                      className="flex items-center gap-2 rounded-lg border border-gray-100 p-2 hover:border-accent/40 hover:bg-gray-50 transition-colors"
+                    >
+                      {l.profileImage ? (
+                        <img src={l.profileImage} alt={l.fullName} loading="lazy" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                      ) : (
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-primary">
+                          {l.fullName.charAt(0)}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-bold text-primary">עו&quot;ד {l.fullName}</p>
+                        <p className="truncate text-[11px] text-gray-500">{l.city}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+                <Link
+                  href={`/lawyers?specialization=${encodeURIComponent(categoryFilter)}`}
+                  className="mt-3 block text-center text-xs font-medium text-accent hover:underline"
+                >
+                  לכל עורכי הדין בתחום {categoryFilter}
+                </Link>
+              </div>
+            )}
           </aside>
 
           {/* ===== Results Cards ===== */}

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
+import { searchLawyers } from '@/lib/lawyer-store';
 
 const SITE_URL = 'https://mishpatly.co.il';
 
@@ -263,6 +264,13 @@ export default async function PersonPage({ params }: PageProps) {
 
   const roleLabel = data.asJudge > 0 ? 'שופט/ת' : data.asDefendant > data.asPlaintiff ? 'נתבע/ת' : 'תובע/ת';
 
+  // Cross-link into the lawyers portal: someone looking up a name involved
+  // in litigation is a strong signal they may need a lawyer in that exact
+  // legal area - closes the loop with the judgment-page -> lawyer links.
+  const matchedLawyers = data.asJudge === 0 && categories.length > 0
+    ? (await searchLawyers({ specialization: categories[0] as string, limit: 3, sortBy: 'rating' })).lawyers
+    : [];
+
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
       <script
@@ -442,6 +450,42 @@ export default async function PersonPage({ params }: PageProps) {
                     </Link>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Lawyers portal cross-link */}
+            {matchedLawyers.length > 0 && (
+              <div className="bg-white rounded-xl shadow p-6 mt-4">
+                <h2 className="text-lg font-bold text-[#0B3C5D] mb-3">
+                  צריכים עורך דין בתחום {categories[0]}?
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {matchedLawyers.map((l) => (
+                    <Link
+                      key={l.id}
+                      href={`/lawyers/${l.slug}`}
+                      className="flex items-center gap-2 rounded-lg border border-gray-100 p-2.5 hover:border-[#C9A84C]/40 hover:bg-gray-50 transition-colors"
+                    >
+                      {l.profileImage ? (
+                        <img src={l.profileImage} alt={l.fullName} loading="lazy" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                      ) : (
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0B3C5D]/10 text-xs font-bold text-[#0B3C5D]">
+                          {l.fullName.charAt(0)}
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-bold text-[#0B3C5D]">עו&quot;ד {l.fullName}</p>
+                        <p className="truncate text-[11px] text-gray-500">{l.city}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+                <Link
+                  href={`/lawyers?specialization=${encodeURIComponent(categories[0] as string)}`}
+                  className="mt-3 inline-block text-xs font-medium text-[#C9A84C] hover:underline"
+                >
+                  לכל עורכי הדין בתחום {categories[0]} &larr;
+                </Link>
               </div>
             )}
 
