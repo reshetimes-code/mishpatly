@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getJudgmentBySlugFromDB, searchJudgmentsFromDB } from "@/lib/judgment-store";
 import { searchLawyers } from "@/lib/lawyer-store";
+import { CATEGORY_TO_SPECIALIZATION } from "@/lib/lawyer-constants";
 import AiChatButton from "./AiChatButton";
 import WhatsAppShare from "./WhatsAppShare";
 
@@ -164,8 +165,9 @@ export default async function JudgmentPage({ params }: PageProps) {
   // given legal category is a strong signal they may need a lawyer in
   // that exact category - and this gives lawyer profiles more real
   // internal links from the site's highest-volume page type.
-  const matchedLawyers = judgment.category
-    ? (await searchLawyers({ specialization: judgment.category, limit: 3, sortBy: 'rating' })).lawyers
+  const lawyerSpecialization = judgment.category ? CATEGORY_TO_SPECIALIZATION[judgment.category] : undefined;
+  const matchedLawyers = lawyerSpecialization
+    ? (await searchLawyers({ specialization: lawyerSpecialization, limit: 3, sortBy: 'rating' })).lawyers
     : [];
 
   // Data for AI chat (factual only - no analysis)
@@ -575,7 +577,7 @@ export default async function JudgmentPage({ params }: PageProps) {
               {matchedLawyers.length > 0 && (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mt-6">
                   <h3 className="font-bold mb-3 text-sm text-[#0B3C5D]">
-                    עורכי דין בתחום {judgment.category}
+                    עורכי דין בתחום {lawyerSpecialization}
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {matchedLawyers.map((l) => (
@@ -599,10 +601,10 @@ export default async function JudgmentPage({ params }: PageProps) {
                     ))}
                   </div>
                   <Link
-                    href={`/lawyers?specialization=${encodeURIComponent(judgment.category)}`}
+                    href={`/lawyers?specialization=${encodeURIComponent(lawyerSpecialization || '')}`}
                     className="mt-3 inline-block text-xs font-medium text-[#C9A84C] hover:underline"
                   >
-                    לכל עורכי הדין בתחום {judgment.category} &larr;
+                    לכל עורכי הדין בתחום {lawyerSpecialization} &larr;
                   </Link>
                 </div>
               )}

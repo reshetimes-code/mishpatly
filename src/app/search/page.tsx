@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { searchLawyers } from "@/lib/lawyer-store";
+import { CATEGORY_TO_SPECIALIZATION } from "@/lib/lawyer-constants";
 import type { StoredJudgment } from "@/lib/judgment-store";
 
 export const dynamic = "force-dynamic";
@@ -208,8 +209,9 @@ export default async function SearchPage({
 
   // Cross-link into the lawyers portal when someone is browsing a specific
   // legal category - same signal as the judgment/person pages.
-  const matchedLawyers = categoryFilter
-    ? (await searchLawyers({ specialization: categoryFilter, limit: 3, sortBy: 'rating' })).lawyers
+  const lawyerSpecialization = categoryFilter ? CATEGORY_TO_SPECIALIZATION[categoryFilter] : undefined;
+  const matchedLawyers = lawyerSpecialization
+    ? (await searchLawyers({ specialization: lawyerSpecialization, limit: 3, sortBy: 'rating' })).lawyers
     : [];
 
   return (
@@ -423,7 +425,7 @@ export default async function SearchPage({
             {matchedLawyers.length > 0 && (
               <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4">
                 <h3 className="mb-3 text-sm font-bold text-primary">
-                  עורכי דין בתחום {categoryFilter}
+                  עורכי דין בתחום {lawyerSpecialization}
                 </h3>
                 <div className="space-y-2">
                   {matchedLawyers.map((l) => (
@@ -447,10 +449,10 @@ export default async function SearchPage({
                   ))}
                 </div>
                 <Link
-                  href={`/lawyers?specialization=${encodeURIComponent(categoryFilter)}`}
+                  href={`/lawyers?specialization=${encodeURIComponent(lawyerSpecialization || '')}`}
                   className="mt-3 block text-center text-xs font-medium text-accent hover:underline"
                 >
-                  לכל עורכי הדין בתחום {categoryFilter}
+                  לכל עורכי הדין בתחום {lawyerSpecialization}
                 </Link>
               </div>
             )}

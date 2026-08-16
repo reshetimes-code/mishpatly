@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { searchLawyers } from '@/lib/lawyer-store';
+import { CATEGORY_TO_SPECIALIZATION } from '@/lib/lawyer-constants';
 
 const SITE_URL = 'https://mishpatly.co.il';
 
@@ -267,8 +268,11 @@ export default async function PersonPage({ params }: PageProps) {
   // Cross-link into the lawyers portal: someone looking up a name involved
   // in litigation is a strong signal they may need a lawyer in that exact
   // legal area - closes the loop with the judgment-page -> lawyer links.
-  const matchedLawyers = data.asJudge === 0 && categories.length > 0
-    ? (await searchLawyers({ specialization: categories[0] as string, limit: 3, sortBy: 'rating' })).lawyers
+  const lawyerSpecialization = categories
+    .map((c) => CATEGORY_TO_SPECIALIZATION[c as string])
+    .find(Boolean);
+  const matchedLawyers = data.asJudge === 0 && lawyerSpecialization
+    ? (await searchLawyers({ specialization: lawyerSpecialization, limit: 3, sortBy: 'rating' })).lawyers
     : [];
 
   return (
@@ -457,7 +461,7 @@ export default async function PersonPage({ params }: PageProps) {
             {matchedLawyers.length > 0 && (
               <div className="bg-white rounded-xl shadow p-6 mt-4">
                 <h2 className="text-lg font-bold text-[#0B3C5D] mb-3">
-                  צריכים עורך דין בתחום {categories[0]}?
+                  צריכים עורך דין בתחום {lawyerSpecialization}?
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {matchedLawyers.map((l) => (
@@ -481,10 +485,10 @@ export default async function PersonPage({ params }: PageProps) {
                   ))}
                 </div>
                 <Link
-                  href={`/lawyers?specialization=${encodeURIComponent(categories[0] as string)}`}
+                  href={`/lawyers?specialization=${encodeURIComponent(lawyerSpecialization || '')}`}
                   className="mt-3 inline-block text-xs font-medium text-[#C9A84C] hover:underline"
                 >
-                  לכל עורכי הדין בתחום {categories[0]} &larr;
+                  לכל עורכי הדין בתחום {lawyerSpecialization} &larr;
                 </Link>
               </div>
             )}
