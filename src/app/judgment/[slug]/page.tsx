@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getJudgmentBySlugFromDB, searchJudgmentsFromDB } from "@/lib/judgment-store";
+import { searchLawyers } from "@/lib/lawyer-store";
 import AiChatButton from "./AiChatButton";
 import WhatsAppShare from "./WhatsAppShare";
 
@@ -158,6 +159,14 @@ export default async function JudgmentPage({ params }: PageProps) {
     .map(r => ({ slug: r.slug, title: `${r.caseNumber} ${r.plaintiff || ''} נ' ${r.defendant || ''}` }));
 
   const personName = judgment.defendant || judgment.plaintiff || '';
+
+  // Cross-link into the lawyers portal: someone reading a judgment in a
+  // given legal category is a strong signal they may need a lawyer in
+  // that exact category - and this gives lawyer profiles more real
+  // internal links from the site's highest-volume page type.
+  const matchedLawyers = judgment.category
+    ? (await searchLawyers({ specialization: judgment.category, limit: 3, sortBy: 'rating' })).lawyers
+    : [];
 
   // Data for AI chat (factual only - no analysis)
   const aiContext = {
@@ -561,6 +570,42 @@ export default async function JudgmentPage({ params }: PageProps) {
                   </div>
                 )}
               </div>
+
+              {/* Lawyers portal cross-link */}
+              {matchedLawyers.length > 0 && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mt-6">
+                  <h3 className="font-bold mb-3 text-sm text-[#0B3C5D]">
+                    עורכי דין בתחום {judgment.category}
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {matchedLawyers.map((l) => (
+                      <Link
+                        key={l.id}
+                        href={`/lawyers/${l.slug}`}
+                        className="flex items-center gap-2 rounded-lg border border-gray-100 p-2.5 hover:border-[#C9A84C]/40 hover:bg-[#FAFBFC] transition-colors"
+                      >
+                        {l.profileImage ? (
+                          <img src={l.profileImage} alt={l.fullName} loading="lazy" className="h-9 w-9 shrink-0 rounded-full object-cover" />
+                        ) : (
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0B3C5D]/10 text-xs font-bold text-[#0B3C5D]">
+                            {l.fullName.charAt(0)}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-bold text-[#0B3C5D]">עו&quot;ד {l.fullName}</p>
+                          <p className="truncate text-[11px] text-gray-500">{l.city}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                  <Link
+                    href={`/lawyers?specialization=${encodeURIComponent(judgment.category)}`}
+                    className="mt-3 inline-block text-xs font-medium text-[#C9A84C] hover:underline"
+                  >
+                    לכל עורכי הדין בתחום {judgment.category} &larr;
+                  </Link>
+                </div>
+              )}
 
               {/* SEO content block */}
               {personName && (

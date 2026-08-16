@@ -17,6 +17,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import HomeSearchForm from "./HomeSearchForm";
+import { searchLawyers } from "@/lib/lawyer-store";
+
+// Fetches top-rated lawyers server-side for the homepage widget below -
+// needs to render at request time, not build time (Docker build has no DB access).
+export const dynamic = "force-dynamic";
 
 /* ------------------------------------------------------------------ */
 /*  Data                                                               */
@@ -76,7 +81,9 @@ const categories = [
 /* ------------------------------------------------------------------ */
 /*  Page Component — Server Component (SSR for SEO)                    */
 /* ------------------------------------------------------------------ */
-export default function HomePage() {
+export default async function HomePage() {
+  const { lawyers: topLawyers } = await searchLawyers({ limit: 6, sortBy: "rating" });
+
   return (
     <div dir="rtl" className="min-h-screen bg-[#FAFBFC] text-[#1a1a2e]">
       {/* ============================================================ */}
@@ -242,6 +249,63 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ============================================================ */}
+      {/*  LAWYERS SECTION — Portal cross-promotion                    */}
+      {/* ============================================================ */}
+      {topLawyers.length > 0 && (
+        <section className="px-4 py-24 sm:px-6 bg-[#FAFBFC]">
+          <div className="mx-auto max-w-6xl">
+            <div className="text-center mb-16">
+              <span className="inline-block px-4 py-1.5 bg-[#C9A84C]/10 text-[#C9A84C] text-sm font-bold rounded-full mb-4">
+                פורטל עורכי דין
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0B3C5D] mb-4">
+                מצאו <span className="text-gradient-gold">עורך דין מומלץ</span>
+              </h2>
+              <div className="divider-gold w-20 mx-auto mt-6" />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {topLawyers.map((l) => (
+                <Link
+                  key={l.id}
+                  href={`/lawyers/${l.slug}`}
+                  className="card-premium group flex items-center gap-4 bg-white rounded-2xl p-5 shadow-lg border border-gray-100"
+                >
+                  {l.profileImage ? (
+                    <img
+                      src={l.profileImage}
+                      alt={l.fullName}
+                      loading="lazy"
+                      className="h-14 w-14 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#C9A84C] to-[#D4B85E] text-lg font-bold text-[#0B3C5D]">
+                      {l.fullName.charAt(0)}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-[#0B3C5D] group-hover:text-[#C9A84C] transition-colors">עו&quot;ד {l.fullName}</p>
+                    <p className="truncate text-sm text-gray-500">{l.city}</p>
+                    <p className="mt-0.5 truncate text-xs text-gray-500">{l.specializations.slice(0, 2).join(" · ")}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            <div className="mt-12 text-center">
+              <Link
+                href="/lawyers"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#0B3C5D] px-8 py-3.5 text-sm font-bold text-white transition-colors hover:bg-[#072a42]"
+              >
+                לכל עורכי הדין בפורטל
+                <ChevronLeft className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ============================================================ */}
       {/*  ABOUT SECTION — Why choose us                               */}
