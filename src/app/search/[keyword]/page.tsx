@@ -12,9 +12,11 @@ export function generateStaticParams() {
   }));
 }
 
-// Pages are statically generated (generateStaticParams above), so refresh
-// hourly to pick up newly-approved lawyers without a full redeploy.
-export const revalidate = 3600;
+// Render on request rather than at build time: the lawyer-listing section
+// below needs a live DB query, and the Docker build environment can't
+// reach the production DB during `next build`. generateStaticParams above
+// still declares the valid slugs; this just defers rendering to runtime.
+export const dynamic = 'force-dynamic';
 
 // ─── Metadata ────────────────────────────────────────────────────────
 
