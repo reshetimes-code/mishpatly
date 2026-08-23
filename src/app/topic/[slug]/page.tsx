@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { seoTopics, getTopicBySlug } from '@/lib/seo-topics';
+import { searchLawyers } from '@/lib/lawyer-store';
+import { TOPIC_TO_SPECIALIZATION } from '@/lib/lawyer-constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,6 +75,19 @@ export default async function TopicPage({ params }: { params: Promise<{ slug: st
     });
     articles = dbArticles;
   } catch { /* DB unavailable */ }
+
+  // Related lawyers for this topic's specialization
+  let topicLawyers: { slug: string; fullName: string; city: string; rating: number; reviewCount: number; yearsExperience: number }[] = [];
+  const spec = TOPIC_TO_SPECIALIZATION[topic.slug];
+  if (spec) {
+    try {
+      const { lawyers } = await searchLawyers({ specialization: spec, sortBy: 'rating', limit: 4 });
+      topicLawyers = lawyers.map(l => ({
+        slug: l.slug, fullName: l.fullName, city: l.city,
+        rating: l.rating, reviewCount: l.reviewCount, yearsExperience: l.yearsExperience,
+      }));
+    } catch { /* DB unavailable */ }
+  }
 
   // Related topics
   const relatedTopics = topic.relatedTopics
@@ -197,6 +212,35 @@ export default async function TopicPage({ params }: { params: Promise<{ slug: st
                       </Link>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Related Lawyers */}
+              {topicLawyers.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h2 className="text-xl font-bold text-primary mb-4">עורכי דין מומלצים ב{topic.title}</h2>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {topicLawyers.map(l => (
+                      <Link
+                        key={l.slug}
+                        href={`/lawyers/${encodeURIComponent(l.slug)}`}
+                        className="block p-4 rounded-lg border border-gray-100 hover:border-accent/30 hover:bg-accent/5 transition"
+                      >
+                        <h3 className="text-sm font-bold text-primary">עו&quot;ד {l.fullName}</h3>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                          <span>{l.city}</span>
+                          {l.yearsExperience > 0 && <span>&bull; {l.yearsExperience} שנות ניסיון</span>}
+                          {l.rating > 0 && <span>&bull; {l.rating}/5 ({l.reviewCount})</span>}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                  <Link
+                    href={`/lawyers?specialization=${encodeURIComponent(spec!)}`}
+                    className="block text-center mt-4 text-accent font-medium text-sm hover:underline"
+                  >
+                    צפייה בכל עורכי הדין ב{topic.title} &larr;
+                  </Link>
                 </div>
               )}
 

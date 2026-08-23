@@ -42,6 +42,22 @@ export const CATEGORY_TO_SPECIALIZATION: Record<string, string> = {
   'חדלות פירעון': 'חדלות פירעון',
 };
 
+// Topic hub pages (src/lib/seo-topics.ts) use their own slugs/titles that
+// don't always match the specialization list above exactly - this maps one
+// to the other so topic pages can cross-link real matching lawyers. Topics
+// with no confident match (e.g. "ביטוח לאומי", "הסרת אזכורים משפטיים") are
+// intentionally omitted.
+export const TOPIC_TO_SPECIALIZATION: Record<string, string> = {
+  'dinei-avoda': 'דיני עבודה',
+  'dinei-mishpaha': 'דיני משפחה',
+  'nezikin': 'נזיקין ותאונות',
+  'mishpat-plili': 'משפט פלילי',
+  'mekarkein': 'מקרקעין ונדל"ן',
+  'hozim': 'דיני חוזים',
+  'teunot-drakhim': 'נזיקין ותאונות',
+  'bituah': 'דיני ביטוח',
+};
+
 export const CITIES = [
   'תל אביב', 'ירושלים', 'חיפה', 'באר שבע', 'ראשון לציון',
   'פתח תקווה', 'אשדוד', 'נתניה', 'חולון', 'בני ברק',
