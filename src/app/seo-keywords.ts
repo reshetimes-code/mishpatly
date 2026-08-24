@@ -3,6 +3,8 @@
  * Organized by category and search volume priority
  */
 
+import { SPECIALIZATIONS, CITIES } from '@/lib/lawyer-constants';
+
 export interface SeoKeyword {
   hebrew: string;
   slug: string;
@@ -194,7 +196,7 @@ export interface KeywordPageData {
   lawyerFilter?: { city?: string; specialization?: string };
 }
 
-export const keywordPages: KeywordPageData[] = [
+const curatedKeywordPages: KeywordPageData[] = [
   {
     slug: 'piskei-din',
     hebrewTitle: 'פסקי דין',
@@ -647,7 +649,7 @@ export const keywordPages: KeywordPageData[] = [
       'חיפה מאכלסת מגוון רחב של עורכי דין המתמחים בכל תחומי המשפט. בין אם תזדקקו לעורך דין לייצוג בבית הדין לעבודה בחיפה, בבית המשפט המחוזי חיפה, או בבית המשפט השלום - תמצאו בפורטל שלנו עורכי דין מנוסים עם הכרות מעמיקה של מערכת המשפט באזור.',
       'משפטלי מציג גם את היסטוריית פסקי הדין הקשורים לכל עורך דין - שקיפות מלאה לפני שאתם בוחרים. בדקו דירוגים, קראו המלצות ובחרו את עורך הדין המתאים לכם בחיפה.',
     ],
-    relatedSlugs: ['orech-din-tel-aviv', 'orech-din-plili-haifa', 'orech-din', 'orech-din-mishpacha'],
+    relatedSlugs: ['orech-din-tel-aviv', 'orech-din-plili-haifa', 'orech-din', 'orech-din-mishpacha-haifa'],
     searchQuery: '',
     lawyerFilter: { city: 'חיפה' },
   },
@@ -677,7 +679,7 @@ export const keywordPages: KeywordPageData[] = [
       'עורכי דין משפחה בתל אביב מייצגים בבית משפט לענייני משפחה בתל אביב ובבית הדין הרבני. בפורטל משפטלי תמצאו עורכי דין משפחה עם ניסיון מוכח, דירוג גבוה מלקוחות והמלצות אמיתיות.',
       'דיני משפחה הם תחום רגיש הדורש שילוב של מקצועיות משפטית ורגישות אנושית. עורך דין משפחה טוב בתל אביב יידע לנהל את הסכסוך בצורה שתשמור על האינטרסים שלכם ושל ילדיכם. ניתן לתאם ייעוץ ראשוני ישירות דרך פרופיל העורך דין.',
     ],
-    relatedSlugs: ['orech-din-tel-aviv', 'orech-din-mishpacha', 'orech-din-gerushin', 'orech-din'],
+    relatedSlugs: ['orech-din-tel-aviv', 'orech-din-mishpacha-jerusalem', 'orech-din-mishpacha-haifa', 'orech-din'],
     searchQuery: '',
     lawyerFilter: { city: 'תל אביב', specialization: 'משפחה' },
   },
@@ -726,4 +728,152 @@ export const keywordPages: KeywordPageData[] = [
     searchQuery: '',
     lawyerFilter: {},
   },
+];
+
+// ─── Programmatic city × specialization landing pages ────────────────
+//
+// One page per (specialization, city) combination - 20 specializations ×
+// 25 cities = 500 pages. Four of those combinations (Tel Aviv/Haifa ×
+// plili/mishpacha/nezikin) are already hand-authored above with richer,
+// bespoke copy, so the generator below is skipped for those and only fills
+// in the remaining ~496. Slugs are built the same way for both
+// ("orech-din-{specSlug}-{citySlug}") so relatedSlugs links resolve
+// correctly regardless of which page authored a given combination.
+//
+// Paragraph text is templated, not hand-written per page - each page still
+// gets a real, substantive difference (its own matched-lawyer listing from
+// the DB, its own city/specialization/court-district facts), the same
+// pattern legal directories like Avvo use for city×practice-area pages.
+// Content variety across the grid comes from rotating through a handful of
+// template variants per combo rather than writing 500 unique paragraphs.
+
+const CITY_SLUGS: Record<string, string> = {
+  'תל אביב': 'tel-aviv', 'ירושלים': 'jerusalem', 'חיפה': 'haifa', 'באר שבע': 'beer-sheva',
+  'ראשון לציון': 'rishon-lezion', 'פתח תקווה': 'petah-tikva', 'אשדוד': 'ashdod', 'נתניה': 'netanya',
+  'חולון': 'holon', 'בני ברק': 'bnei-brak', 'רמת גן': 'ramat-gan', 'אשקלון': 'ashkelon',
+  'רחובות': 'rehovot', 'בת ים': 'bat-yam', 'הרצליה': 'herzliya', 'כפר סבא': 'kfar-saba',
+  'רעננה': 'raanana', 'מודיעין': 'modiin', 'נצרת': 'nazareth', 'עכו': 'akko',
+  'טבריה': 'tiberias', 'קריית שמונה': 'kiryat-shmona', 'אילת': 'eilat', 'עפולה': 'afula', 'חדרה': 'hadera',
+};
+
+// Approximate judicial-district assignment per city - directionally
+// accurate for SEO copy, not a substitute for checking the actual court.
+const CITY_DISTRICT: Record<string, string> = {
+  'תל אביב': 'תל אביב', 'ירושלים': 'ירושלים', 'חיפה': 'חיפה', 'באר שבע': 'דרום',
+  'ראשון לציון': 'מרכז', 'פתח תקווה': 'מרכז', 'אשדוד': 'דרום', 'נתניה': 'מרכז',
+  'חולון': 'תל אביב', 'בני ברק': 'מרכז', 'רמת גן': 'תל אביב', 'אשקלון': 'דרום',
+  'רחובות': 'מרכז', 'בת ים': 'תל אביב', 'הרצליה': 'תל אביב', 'כפר סבא': 'מרכז',
+  'רעננה': 'מרכז', 'מודיעין': 'מרכז', 'נצרת': 'צפון', 'עכו': 'צפון',
+  'טבריה': 'צפון', 'קריית שמונה': 'צפון', 'אילת': 'דרום', 'עפולה': 'צפון', 'חדרה': 'חיפה',
+};
+
+const SPEC_SLUGS: Record<string, string> = {
+  'דיני משפחה': 'mishpacha', 'דיני עבודה': 'avoda', 'משפט פלילי': 'plili', 'נזיקין ותאונות': 'nezikin',
+  'מקרקעין ונדל"ן': 'nedlan', 'דיני חברות ומסחרי': 'miskhari', 'משפט מנהלי': 'minhali', 'דיני ביטוח': 'bituah',
+  'הוצאה לפועל': 'hotzaa-lapoal', 'דיני מיסים': 'misim', 'קניין רוחני': 'kinyan-ruchani', 'דיני צרכנות': 'tzarchanut',
+  'חדלות פירעון': 'hadlut-peiraon', 'דיני תכנון ובנייה': 'tichnun-bniya', 'דיני הגירה': 'hagira',
+  'דיני צבא וביטחון': 'tzava-bitachon', 'דיני אינטרנט וסייבר': 'internet-sayber', 'גישור ובוררות': 'gishur-borerut',
+  'דיני חוזים': 'hozim', 'דיני בנקאות': 'bankaut',
+};
+
+const SPEC_DESCRIPTIONS: Record<string, string> = {
+  'דיני משפחה': 'תחום זה כולל ליווי בהליכי גירושין, חלוקת רכוש, משמורת ילדים, מזונות והסכמי ממון.',
+  'דיני עבודה': 'התחום עוסק בייצוג עובדים ומעסיקים בסכסוכי עבודה, פיטורין שלא כדין, הפליה ותנאי העסקה.',
+  'משפט פלילי': 'עורך דין בתחום זה מייצג חשודים ונאשמים בחקירות משטרה, הליכים פליליים, הסדרי טיעון וערעורים.',
+  'נזיקין ותאונות': 'התמחות זו כוללת תביעות נזקי גוף, תאונות דרכים, תאונות עבודה ורשלנות רפואית.',
+  'מקרקעין ונדל"ן': 'התחום עוסק בליווי עסקאות מקרקעין, רכישת דירות, הסכמי שכירות ורישום בטאבו.',
+  'דיני חברות ומסחרי': 'עורך דין בתחום זה מלווה עסקים, הסכמים מסחריים, הקמת חברות ודיני תאגידים.',
+  'משפט מנהלי': 'התחום עוסק בהתדיינות מול רשויות המדינה, עתירות מנהליות וערעורים על החלטות רשויות.',
+  'דיני ביטוח': 'התמחות זו כוללת תביעות מול חברות ביטוח, סכסוכי פוליסה ותביעות שיבוב.',
+  'הוצאה לפועל': 'התחום עוסק בייצוג בהליכי הוצאה לפועל, עיקולים, פשיטות רגל והסדרי חובות.',
+  'דיני מיסים': 'עורך דין בתחום זה עוסק בתכנון מס, ייצוג מול רשות המיסים, מע"מ ומיסוי מקרקעין.',
+  'קניין רוחני': 'התחום כולל רישום פטנטים, סימני מסחר, זכויות יוצרים והגנה על קניין רוחני.',
+  'דיני צרכנות': 'התמחות זו עוסקת בתביעות צרכניות, הטעיית צרכנים, ביטול עסקאות ותביעות ייצוגיות.',
+  'חדלות פירעון': 'התחום עוסק בהליכי חדלות פירעון, פשיטת רגל, הסדרי חוב ופירוק חברות.',
+  'דיני תכנון ובנייה': 'עורך דין בתחום זה מלווה הליכי היתרי בנייה, ועדות תכנון וערעורים על החלטות תכנוניות.',
+  'דיני הגירה': 'התחום כולל ויזות עבודה, אשרות שהייה, הסדרת מעמד ואזרחות.',
+  'דיני צבא וביטחון': 'התמחות זו עוסקת בייצוג חיילים בהליכים משמעתיים, ועדות פטור וזכויות משרתים.',
+  'דיני אינטרנט וסייבר': 'התחום עוסק בפרטיות מקוונת, לשון הרע ברשת, הגנת סייבר וסחר אלקטרוני.',
+  'גישור ובוררות': 'התמחות זו כוללת פתרון סכסוכים מחוץ לכותלי בית המשפט בהליכי גישור ובוררות.',
+  'דיני חוזים': 'התחום עוסק בניסוח, בחינה והפרת חוזים, תביעות אזרחיות וסכסוכים מסחריים.',
+  'דיני בנקאות': 'עורך דין בתחום זה מייצג לקוחות מול בנקים בהסדרי חוב, עיקולים והלוואות.',
+};
+
+function openingParagraph(spec: string, city: string, variant: number): string {
+  const desc = SPEC_DESCRIPTIONS[spec] || '';
+  const variants = [
+    `מחפשים עורך דין ${spec} ב${city}? ${desc} פורטל משפטלי מרכז עבורכם את עורכי הדין הפעילים ב${city} עם התמחות מוכחת בתחום, כולל שנות ניסיון, דירוג לקוחות ופרטי קשר ישירים.`,
+    `עורך דין ${spec} ב${city} מלווה לקוחות בהליכים בתחום זה. ${desc} בפורטל משפטלי תמצאו עורכי דין ${spec} הפעילים ב${city}, עם פרופיל מלא לפני שאתם בוחרים.`,
+    `בחירת עורך דין ${spec} מתאים ב${city} יכולה להשפיע משמעותית על תוצאת התיק שלכם. ${desc} משפטלי מאפשר להשוות בין עורכי דין ${spec} ב${city} לפי ניסיון, התמחות ודירוג.`,
+    `${desc} אם אתם זקוקים לעורך דין ${spec} ב${city}, פורטל משפטלי מציג את כל עורכי הדין הפעילים בעיר בתחום זה - עם אפשרות ליצירת קשר ישירה בטלפון או בוואטסאפ.`,
+  ];
+  return variants[variant % variants.length];
+}
+
+function courtParagraph(spec: string, city: string, district: string, variant: number): string {
+  const variants = [
+    `תיקים בתחום ${spec} ב${city} נדונים בדרך כלל בבתי המשפט של מחוז ${district}. עורך דין ${spec} מנוסה מכיר את הנהלים והשופטים הדנים בתיקים מסוג זה באזור, מה שיכול לייעל את הטיפול בתיק.`,
+    `עורכי דין ${spec} הפעילים ב${city} מייצגים לקוחות מול הערכאות במחוז ${district}, ומכירים היטב את האזור והמערכת המשפטית המקומית.`,
+    `ב${city} ובמחוז ${district} פועלים עורכי דין רבים בתחום ${spec} - חשוב לבחור מי שיש לו ניסיון ספציפי בסוג התיק שלכם ובבתי המשפט הרלוונטיים באזור.`,
+  ];
+  return variants[variant % variants.length];
+}
+
+function ctaParagraph(spec: string, city: string, variant: number): string {
+  const variants = [
+    `בפורטל משפטלי תוכלו לצפות בפרופיל המלא של כל עורך דין ${spec} ב${city} - שנות ניסיון, השכלה, דירוג לקוחות וחוות דעת אמיתיות - וליצור קשר ישיר ללא תשלום.`,
+    `לפני שאתם בוחרים עורך דין ${spec} ב${city}, השוו בין מספר עורכי דין לפי ניסיון ודירוג לקוחות בפורטל משפטלי. יצירת קשר ראשונית היא בדרך כלל ללא עלות.`,
+    `משפטלי מרכז את כל עורכי הדין המתמחים ב${spec} ב${city} במקום אחד - פרופיל מלא, חוות דעת לקוחות וטלפון ישיר, כדי שתוכלו לבחור בביטחון.`,
+  ];
+  return variants[variant % variants.length];
+}
+
+// Combinations already hand-authored above with bespoke copy - skip
+// regenerating them so we don't emit a duplicate slug.
+const CURATED_COMBOS = new Set([
+  'תל אביב|משפט פלילי', 'תל אביב|דיני משפחה', 'תל אביב|נזיקין ותאונות', 'חיפה|משפט פלילי',
+]);
+
+function generateLocationSpecPages(): KeywordPageData[] {
+  const pages: KeywordPageData[] = [];
+  let i = 0;
+  for (const spec of SPECIALIZATIONS) {
+    for (const city of CITIES) {
+      if (CURATED_COMBOS.has(`${city}|${spec}`)) { i++; continue; }
+      const citySlug = CITY_SLUGS[city];
+      const specSlug = SPEC_SLUGS[spec];
+      const district = CITY_DISTRICT[city];
+      const slug = `orech-din-${specSlug}-${citySlug}`;
+
+      const nextCity = CITIES[(CITIES.indexOf(city) + 1) % CITIES.length];
+      const nextSpec = SPECIALIZATIONS[(SPECIALIZATIONS.indexOf(spec) + 1) % SPECIALIZATIONS.length];
+
+      pages.push({
+        slug,
+        hebrewTitle: `עורך דין ${spec} ${city}`,
+        metaTitle: `עורך דין ${spec} ב${city} - מומלץ ומנוסה | משפטלי`,
+        metaDescription: `${SPEC_DESCRIPTIONS[spec]} מצאו עורך דין ${spec} מומלץ ב${city} - פרופיל מלא, דירוג לקוחות ויצירת קשר ישירה. פורטל משפטלי.`,
+        h1: `עורך דין ${spec} ב${city}`,
+        paragraphs: [
+          openingParagraph(spec, city, i),
+          courtParagraph(spec, city, district, i + 1),
+          ctaParagraph(spec, city, i + 2),
+        ],
+        relatedSlugs: [
+          'orech-din',
+          `orech-din-${specSlug}-${CITY_SLUGS[nextCity]}`,
+          `orech-din-${SPEC_SLUGS[nextSpec]}-${citySlug}`,
+        ],
+        searchQuery: '',
+        lawyerFilter: { city, specialization: spec },
+      });
+      i++;
+    }
+  }
+  return pages;
+}
+
+export const keywordPages: KeywordPageData[] = [
+  ...curatedKeywordPages,
+  ...generateLocationSpecPages(),
 ];
