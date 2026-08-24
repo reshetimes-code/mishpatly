@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { keywordPages } from '@/app/seo-keywords';
 import { searchLawyers } from '@/lib/lawyer-store';
+import { CATEGORY_TO_SPECIALIZATION } from '@/lib/lawyer-constants';
 
 // ─── Static Params ───────────────────────────────────────────────────
 
@@ -247,10 +248,15 @@ export default async function KeywordPage({
 
   // Lawyer portal landing pages promise a lawyer listing in their copy -
   // actually fetch and render matching lawyers instead of leaving it dead.
+  // lawyerFilter.specialization uses short category labels ("פלילי") that
+  // don't match the full specialization strings stored on lawyers ("משפט
+  // פלילי") - translate through the same map judgment/person pages use, or
+  // fall back to the raw value for anything already spelled out in full.
+  const rawSpec = page.lawyerFilter?.specialization || '';
   const matchedLawyers = page.lawyerFilter
     ? (await searchLawyers({
         city: page.lawyerFilter.city || '',
-        specialization: page.lawyerFilter.specialization || '',
+        specialization: CATEGORY_TO_SPECIALIZATION[rawSpec] || rawSpec,
         limit: 9,
         sortBy: 'rating',
       })).lawyers
