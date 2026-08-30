@@ -11,7 +11,10 @@ const SITE_URL = 'https://mishpatly.co.il';
 // prepends that prefix, so without stripping it first we'd render
 // "עו"ד עו"ד <name>".
 function stripLawyerTitlePrefix(name: string): string {
-  return name.replace(/^\s*עו(?:ה)?["״'׳]?\s*ד\.?\s*/u, '').trim();
+  return name
+    .replace(/^\s*עו(?:ה)?["״'׳]?\s*ד\.?\s*/u, '')
+    .replace(/^\s*עורכ(?:י|ות)\s+דין\s*/u, '')
+    .trim();
 }
 
 export async function generateMetadata({
@@ -27,11 +30,21 @@ export async function generateMetadata({
   lawyer.fullName = stripLawyerTitlePrefix(lawyer.fullName);
 
   const specs = lawyer.specializations.join(', ');
-  const title = `עו"ד ${lawyer.fullName} - ${specs || 'עורך דין'} | ${lawyer.city} | פורטל עורכי דין משפטלי`;
+  // Keep the <title> tight (~60 chars is Google's display budget) so the
+  // lawyer's own name isn't crowded out or truncated: name first, then at
+  // most two specializations, then city. The full specialization list still
+  // goes into the description/keywords below.
+  const titleSpecs = lawyer.specializations.slice(0, 2).join(', ');
+  const title = `עו"ד ${lawyer.fullName}${titleSpecs ? ` - ${titleSpecs}` : ''} | ${lawyer.city} | משפטלי`;
   const description = `עו"ד ${lawyer.fullName} - עורך דין ${specs ? `המתמחה ב${specs}` : ''} ב${lawyer.city}. ${lawyer.yearsExperience > 0 ? `${lawyer.yearsExperience} שנות ניסיון. ` : ''}${lawyer.rating > 0 ? `דירוג ${lawyer.rating}/5 (${lawyer.reviewCount} המלצות). ` : ''}פרופיל מלא, חוות דעת לקוחות, טלפון וWhatsApp ליצירת קשר ישירה. ${lawyer.courtDistrict ? `פעיל במחוז ${lawyer.courtDistrict}. ` : ''}משפטלי - פורטל עורכי הדין של ישראל.`;
 
   return {
-    title,
+    // Use an absolute title so the site-wide "| משפט לי - משפטלי | מאגר פסקי
+    // דין" template (meant for the case-law search product) doesn't get
+    // appended here — on a personal-name page that generic, site-wide
+    // boilerplate just dilutes relevance and pushes past Google's title
+    // length budget.
+    title: { absolute: title },
     description,
     keywords: [
       lawyer.fullName,
