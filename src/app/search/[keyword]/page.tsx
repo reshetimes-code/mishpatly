@@ -7,17 +7,17 @@ import { CATEGORY_TO_SPECIALIZATION } from '@/lib/lawyer-constants';
 
 // ─── Static Params ───────────────────────────────────────────────────
 
+// Empty array = render nothing at build time (the Docker build environment
+// can't reach the production DB anyway), but keep dynamicParams at its
+// default (true) so every one of the 532 city x specialization slugs still
+// resolves. Each slug is rendered - and its DB query run - once on its first
+// visit, then served from cache for `revalidate` seconds to every visitor
+// and crawler after that, instead of hitting the DB on every single request.
 export function generateStaticParams() {
-  return keywordPages.map((page) => ({
-    keyword: page.slug,
-  }));
+  return [];
 }
 
-// Render on request rather than at build time: the lawyer-listing section
-// below needs a live DB query, and the Docker build environment can't
-// reach the production DB during `next build`. generateStaticParams above
-// still declares the valid slugs; this just defers rendering to runtime.
-export const dynamic = 'force-dynamic';
+export const revalidate = 21600; // 6 hours
 
 // ─── Metadata ────────────────────────────────────────────────────────
 
